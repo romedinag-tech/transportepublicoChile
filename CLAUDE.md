@@ -35,6 +35,12 @@ copia datos de las ciudades.
 - **El «normal» depende del tipo de día, y el feriado es `D`.** El capturador ya clasifica los feriados
   como domingo. Comparar un feriado contra un día laboral fabricó caídas de −60 % en todas las ciudades el
   18-sep-2026.
+- **2026-09-24 — Desde la sesión en la nube, `*.github.io` no se alcanza.** La red por defecto
+  (**Trusted**) deja leer `storage.googleapis.com` (el vivo) y `raw.githubusercontent.com`, pero no
+  `*.github.io`. Para leer o verificar el «normal» desde la sesión, usar
+  `https://raw.githubusercontent.com/romedinag-tech/<repo>/main/data/baseline_30min.json` (probado en
+  las ciudades: HTTP 200, rama `main`). La página publicada, que corre en el navegador del usuario,
+  puede leer cualquiera de las dos rutas.
 - **La privacidad se audita por contenido.** `dia.json` trae `excesos_geo`, que puede tener posiciones de
   eventos individuales. No se usa ni se republica.
 
