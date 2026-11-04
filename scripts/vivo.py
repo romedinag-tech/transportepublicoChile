@@ -1,4 +1,6 @@
-"""Resume el dato en vivo de cada ciudad en site/data/vivo.json. Corre en GitHub Actions cada 30 minutos.
+"""Respaldo del dato en vivo: resume cada ciudad en site/data/vivo.json en cada publicación del sitio.
+
+El dato vigente lo deja la captura cada 30 minutos, con `_motor/resumen_nacional.py`.
 
 Lee el dia.json público de cada ciudad y conserva sólo cifras de sistema: buses en ruta, hora de la captura, tipo de día y franja.
 Así el visitante nunca golpea los buckets: el gasto no crece con las visitas.
