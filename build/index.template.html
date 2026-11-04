@@ -309,7 +309,7 @@ const IND={
  vivo:{b:"En vivo",t:"Buses en ruta ahora",e:"Buses en servicio fuera de terminal, en la última captura de cada ciudad.",u:"",d:0,get:c=>{const v=vivoDe(c);return reciente(v)?v.buses:null},tam:true}
 };
 function vivoDe(c){return (vivo&&vivo.ciudades[c.id])||null}
-const reciente=v=>{if(!v||!v.snapshot)return false;const e=(Date.now()-new Date(v.snapshot).getTime())/6e4;return e<=75};
+const reciente=v=>{if(!v||!v.snapshot)return false;const e=(Date.now()-new Date(v.snapshot).getTime())/6e4;return e<=120};
 const horaDe=s=>new Date(s).toLocaleTimeString("es-CL",{hour:"2-digit",minute:"2-digit",hourCycle:"h23",timeZone:"America/Santiago"});
 
 /* mapa */
@@ -428,13 +428,17 @@ function kpis(){
   $("kHoras").textContent=fmt(Math.min(...gr.map(c=>c.horas)),1)+"–"+fmt(Math.max(...gr.map(c=>c.horas)),1);
   $("kPob").textContent=fmt(cmp.reduce((s,c)=>s+c.pob,0)/1e6,1)+" M";
   const led=$("led"),stgo=porId.santiago;
-  const off=m=>{led.classList.add("off");$("ledT").textContent="Sin señal";$("kBuses").textContent="—";$("kBusesN").textContent=m;$("banner").innerHTML=`${m} Gran Santiago, que no se captura en este sitio, opera cerca de <b>${fmt(Math.round(stgo.buses_pico/100)*100)}</b> buses en hora punta.`};
-  if(!vivo){off("Dato en vivo no disponible.");return}
+  const off=(m,et)=>{led.classList.add("off");$("ledT").textContent=et;$("kBuses").textContent="—";$("kBusesN").textContent=m;$("banner").innerHTML=`${m} Gran Santiago, que no se captura en este sitio, opera cerca de <b>${fmt(Math.round(stgo.buses_pico/100)*100)}</b> buses en hora punta.`};
+  if(!vivo){off("Dato en vivo no disponible.","Sin dato");return}
   const con=Object.keys(vivo.ciudades).map(id=>({id,v:vivo.ciudades[id]})).filter(x=>x.v&&reciente(x.v)&&(x.v.buses||0)>0);
-  if(!con.length){off("La captura se detiene de 01:00 a 05:00.");return}
+  if(!con.length){
+    const hCl=+new Intl.DateTimeFormat("es-CL",{hour:"numeric",hourCycle:"h23",timeZone:"America/Santiago"}).format(new Date());
+    if(hCl>=1&&hCl<5){off("La captura se detiene de 01:00 a 05:00.","Captura detenida");return}
+    const sn=Object.values(vivo.ciudades).map(v=>v&&v.snapshot).filter(Boolean).sort().pop();
+    off(sn?`Sin actualizar: último dato a las ${horaDe(sn)}.`:"Dato en vivo no disponible.","Sin actualizar");return}
   const tot=con.reduce((s,x)=>s+x.v.buses,0);let nor=0;con.forEach(x=>{const c=porId[x.id];const a=c&&c.normal[x.v.tipo];if(a&&a[x.v.bin]!=null)nor+=a[x.v.bin]});
-  const h=horaDe(con.map(x=>x.v.snapshot).sort().pop());
-  led.classList.remove("off");$("ledT").textContent="En vivo";$("kBuses").textContent=fmt(tot);$("kBusesN").textContent=`${con.length} ciudades, sin Gran Santiago`;
+  const ult=con.map(x=>x.v.snapshot).sort().pop(),h=horaDe(ult),edad=Math.round((Date.now()-new Date(ult).getTime())/6e4);
+  led.classList.toggle("off",edad>60);$("ledT").textContent=edad>60?`Hace ${edad} min`:"En vivo";$("kBuses").textContent=fmt(tot);$("kBusesN").textContent=`${con.length} ciudades, sin Gran Santiago`;
   $("banner").innerHTML=`A las <b>${h}</b> circulan <b>${fmt(tot)}</b> buses en <b>${con.length}</b> ciudades regionales${nor?`; el promedio histórico de esta franja es ${fmt(nor)}`:""}. Gran Santiago, que no se captura en este sitio, opera cerca de <b>${fmt(Math.round(stgo.buses_pico/100)*100)}</b> buses en hora punta.`;
 }
 async function cargarVivo(){try{const r=await fetch("data/vivo.json?t="+Math.floor(Date.now()/3e5),{cache:"no-store"});if(!r.ok)throw 0;vivo=await r.json()}catch(e){vivo=null}kpis();pintar()}
