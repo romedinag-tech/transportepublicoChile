@@ -429,7 +429,9 @@ function kpis(){
   marca(edad>60);$("ledT").textContent=edad>60?`Hace ${edad} min`:"En vivo";$("kBuses").textContent=fmt(tot);$("kBusesN").textContent=`${con.length} ciudades, sin Gran Santiago`;
   $("banner").innerHTML=`A las <b>${h}</b> circulan <b>${fmt(tot)}</b> buses en <b>${con.length}</b> ciudades regionales${nor?`; el promedio histórico de esta franja es ${fmt(nor)}`:""}. Gran Santiago, que no se captura en este sitio, opera cerca de <b>${fmt(Math.round(stgo.buses_pico/100)*100)}</b> buses en hora punta.`;
 }
-async function cargarVivo(){try{const r=await fetch("data/vivo.json?t="+Math.floor(Date.now()/3e5),{cache:"no-store"});if(!r.ok)throw 0;vivo=await r.json()}catch(e){vivo=null}kpis();pintar()}
+const leeJSON=async u=>{const r=await fetch(u,{cache:"no-cache"});if(!r.ok)throw 0;return r.json()};
+/* El resumen lo deja el análisis de la captura cada 30 min; el archivo del sitio queda de respaldo */
+async function cargarVivo(){try{vivo=await leeJSON("https://storage.googleapis.com/iquique-transporte-live/nacional/vivo.json")}catch(e){try{vivo=await leeJSON("data/vivo.json")}catch(e2){vivo=null}}kpis();pintar()}
 
 /* pestañas */
 function ir(v){[...$("mainTabs").children].forEach(b=>b.classList.toggle("on",b.dataset.v===v));document.querySelectorAll(".vista").forEach(s=>s.hidden=s.id!=="v-"+v);
