@@ -218,9 +218,7 @@ footer{margin-top:26px;color:var(--ink-lo);font-size:.8rem;text-align:center}
   <nav class="tabs" id="mainTabs" aria-label="Secciones">
     <button class="on" data-v="ciudades"><svg class="ic"><use href="#i-map"/></svg>Ciudades</button>
     <button data-v="dia"><svg class="ic"><use href="#i-time"/></svg>Durante el día</button>
-    <button data-v="tabla"><svg class="ic"><use href="#i-tabla"/></svg>Tabla</button>
-    <button data-v="analisis"><svg class="ic"><use href="#i-lupa"/></svg>Análisis</button>
-    <button data-v="metodo"><svg class="ic"><use href="#i-doc"/></svg>Método</button>
+    <button data-v="analisis"><svg class="ic"><use href="#i-lupa"/></svg>Análisis potenciales</button>
   </nav>
 
   <div class="kpis" aria-live="polite">
@@ -248,6 +246,11 @@ footer{margin-top:26px;color:var(--ink-lo);font-size:.8rem;text-align:center}
       </div>
       <div class="card panel" id="panel"></div>
     </div>
+    <div class="card">
+      <h2><svg class="ic"><use href="#i-tabla"/></svg>Todas las cifras</h2>
+      <p class="desc" id="tNota"></p>
+      <div class="tablawrap"><table id="tablaC"><thead><tr id="thead"></tr></thead><tbody id="tbody"></tbody></table></div>
+    </div>
   </section>
 
   <section class="vista" id="v-dia" hidden>
@@ -256,11 +259,6 @@ footer{margin-top:26px;color:var(--ink-lo);font-size:.8rem;text-align:center}
       <p class="desc">Haz clic en un gráfico para ampliarlo y descargarlo; los nombres de la leyenda encienden y apagan cada ciudad.</p>
       <div id="graf" class="gi-host"></div>
     </div>
-  </section>
-
-  <section class="vista" id="v-tabla" hidden>
-    <div class="card" style="padding:0"><div class="tablawrap"><table id="tablaC"><thead><tr id="thead"></tr></thead><tbody id="tbody"></tbody></table></div></div>
-    <p class="nota" id="tNota"></p>
   </section>
 
   <section class="vista" id="v-analisis" hidden>
@@ -279,20 +277,7 @@ footer{margin-top:26px;color:var(--ink-lo);font-size:.8rem;text-align:center}
     </div>
   </section>
 
-  <section class="vista" id="v-metodo" hidden>
-    <div class="dos">
-      <div class="card txt"><h3>Velocidad</h3><p>Velocidad física entre pulsos GPS consecutivos, con un pulso por bus por minuto y sin terminales, entre 07:00 y 21:00. Se usan martes y miércoles y el domingo de la segunda semana de <span id="mMuestra"></span>, sin feriados. La marca en cada barra es el intervalo de 95 % entre días.</p><p>Sirve para comparar ciudades, no para fijar un valor absoluto, y puede diferir de los tableros de cada ciudad, que usan otras definiciones. Para Gran Santiago, DTPM informa 18,3 km/h en día laboral en 2024; con una definición cercana a la suya se obtienen 17,6 km/h.</p></div>
-      <div class="card txt"><h3>Otros indicadores</h3><p><b>Aumento en domingo:</b> velocidad de domingo sobre la laboral. Es un indicio de congestión, no una medición de ella.</p><p><b>Buses en punta por habitante:</b> sólo buses en ruta, sin plazas ni otros modos, como Metro, tren o colectivos.</p><p><b>Cobertura:</b> población en manzanas censales a 400 metros o menos de un paradero. No dice cuánto servicio pasa por ese paradero.</p><p><b>Horas con la mitad de los buses:</b> mide la forma del día respecto de la punta de cada ciudad. <b>Buses en valle:</b> 10:00 a 16:00 sobre la punta; un valor alto indica una oferta más plana, no un mejor servicio.</p></div>
-    </div>
-    <div class="dos">
-      <div class="card txt"><h3>Dato en vivo</h3><p>Se actualiza cada 30 minutos, y la captura se detiene de 01:00 a 05:00. La comparación usa el promedio histórico de esa franja y ese tipo de día: es una foto contra un promedio, no una medición de cumplimiento. No incluye Gran Santiago ni La Serena, que no se capturan en este sitio.</p></div>
-      <div class="card txt"><h3>Alcance y fuentes</h3><p>Registros GPS entregados por el Ministerio de Transportes y Telecomunicaciones por solicitud de acceso a la información; GTFS; Censo 2024 (INE); cartografía de OpenStreetMap y Esri. Algunas zonas con GPS, como Puerto Montt y Limache-Olmué, aún no están incluidas. Arica, Curicó, Los Ángeles, Puerto Varas y Coyhaique no tienen perímetro de exclusión y no reportan estos datos.</p></div>
-    </div>
-    <div class="card" style="padding:0"><div class="tablawrap" style="max-height:none"><table><thead><tr><th>Ciudad</th><th style="text-align:left">Comunas consideradas</th><th style="text-align:left">Fuera de cobertura y población</th><th>Líneas</th><th>Días L + D</th><th>Pulsos</th></tr></thead><tbody id="tMetodo"></tbody></table></div></div>
-    <p class="nota">Quedan fuera las comunas con menos de 60 % de su población a 400 metros de un paradero: la fuente las sirve sólo en parte o su geometría está en revisión. En Gran Concepción, los buses por hora cubren 36 líneas y 7 comunas, y sobre esas 7 se calcula el indicador por habitante. Todas las cifras son agregados por ciudad: este sitio no publica patentes, posiciones de buses individuales ni microdato.</p>
-  </section>
-
-  <footer>By: <a href="mailto:romedinag@gmail.com">Rodrigo Medina</a><div class="aviso">Versión de trabajo: las cifras y los textos pueden cambiar.</div></footer>
+  <footer>By: <a href="mailto:romedinag@gmail.com">Rodrigo Medina</a><div class="aviso">Fuentes: registros GPS del Ministerio de Transportes y Telecomunicaciones, por solicitud de acceso a la información; GTFS; Censo 2024 (INE). Cifras agregadas por ciudad: este sitio no publica patentes, posiciones de buses individuales ni microdato.</div><div class="aviso">Versión de trabajo: las cifras y los textos pueden cambiar.</div></footer>
 </div>
 <script>/*__LEAFLET_JS__*/</script>
 <script>
@@ -371,9 +356,9 @@ function dibRanking(){
   const mete=(arr,tit)=>{if(tit)R.insertAdjacentHTML("beforeend",`<div class="grupo">${tit}</div>`);arr.forEach(c=>{const b=document.createElement("button");b.className="fila"+(I.get(c)==null||c.grupo==="parcial"?" apag":"");b.innerHTML=filaHTML(c,I,mx);
     b.onclick=()=>elegir(c.id);b.onmouseenter=b.onfocus=()=>{marcas[c.id].setStyle({weight:3,color:css("--accent")}).bringToFront().openTooltip()};b.onmouseleave=b.onblur=()=>{marcas[c.id].setStyle({weight:.8,color:css("--borde-marca")}).closeTooltip()};R.appendChild(b)})};
   mete(g("grande"));mete(g("pequeno"),"Sistemas de menos de 5 líneas");mete(g("parcial"),"No comparable: fuente de 2 líneas");
-  const n=[];if(indicador==="vel_lab")n.push("La marca en cada barra es el intervalo de 95 % entre días.");
+  const n=[];if(indicador==="vel_lab")n.push("La marca en cada barra es el intervalo de 95 % entre días. Esta medida sirve para comparar ciudades, no como valor absoluto: con otra definición, DTPM informa 18,3 km/h para Gran Santiago en 2024.");
   if(I.tam){const s=C.filter(c=>c.vivo&&!reciente(vivoDe(c))).map(c=>c.nombre);n.push("Gran Santiago y La Serena no tienen captura en este sitio."+(s.length?(s.length>4?` Sin dato reciente en ${s.length} ciudades.`:" Sin dato reciente: "+s.join(", ")+"."):""))}
-  if(indicador==="buses_10k"||indicador==="cob400")n.push("Las comunas consideradas se detallan en Método.");
+  if(indicador==="buses_10k"||indicador==="cob400")n.push("Las comunas consideradas se indican bajo «Todas las cifras».");
   $("pNota").textContent=n.join(" ");
 }
 function dibFicha(){
@@ -418,11 +403,10 @@ function dibTabla(){
   $("thead").innerHTML=COL.map(c=>`<th scope="col" aria-sort="${orden.k===c.k?(orden.dir>0?"ascending":"descending"):"none"}"><button data-k="${c.k}">${c.t}${orden.k===c.k?(orden.dir>0?" ▲":" ▼"):""}</button></th>`).join("");
   document.querySelectorAll("#thead button").forEach(b=>b.onclick=()=>{const k=b.dataset.k;orden={k,dir:orden.k===k?-orden.dir:(k==="nombre"?1:-1)};dibTabla()});
   const T=$("tbody");T.innerHTML="";const nc=COL.length;
-  const mete=(arr,tit,ap)=>{if(tit)T.insertAdjacentHTML("beforeend",`<tr class="sep"><td colspan="${nc}">${tit}</td></tr>`);arr.forEach(c=>{const tr=document.createElement("tr");if(ap)tr.className="ap";tr.tabIndex=0;tr.innerHTML=COL.map(k=>k.k==="nombre"?`<td>${c.nombre}</td>`:((c.grupo==="parcial"&&!["lineas","vel_lab","vel_dom","gana_dom"].includes(k.k))?"<td>—</td>":`<td>${k.d==null?(c[k.k]??"—"):fmt(c[k.k],k.d)}</td>`)).join("");tr.onclick=()=>{ir("ciudades");if(sel!==c.id)elegir(c.id)};tr.onkeydown=e=>{if(e.key==="Enter")tr.click()};T.appendChild(tr)})};
+  const mete=(arr,tit,ap)=>{if(tit)T.insertAdjacentHTML("beforeend",`<tr class="sep"><td colspan="${nc}">${tit}</td></tr>`);arr.forEach(c=>{const tr=document.createElement("tr");if(ap)tr.className="ap";tr.tabIndex=0;tr.innerHTML=COL.map(k=>k.k==="nombre"?`<td>${c.nombre}</td>`:((c.grupo==="parcial"&&!["lineas","vel_lab","vel_dom","gana_dom"].includes(k.k))?"<td>—</td>":`<td>${k.d==null?(c[k.k]??"—"):fmt(c[k.k],k.d)}</td>`)).join("");tr.onclick=()=>{if(sel!==c.id)elegir(c.id);$("pills").scrollIntoView({block:"start"})};tr.onkeydown=e=>{if(e.key==="Enter")tr.click()};T.appendChild(tr)})};
   mete(srt(C.filter(c=>c.grupo==="grande")));mete(srt(C.filter(c=>c.grupo==="pequeno")),"Sistemas de menos de 5 líneas");mete(srt(C.filter(c=>c.grupo==="parcial")),"No comparable: fuente de 2 líneas",true);
 }
-$("tNota").textContent="Ordenadas de norte a sur. Selecciona un encabezado para ordenar y una ciudad para ver su ficha. Cobertura y población, sin las comunas que se detallan en Método.";
-$("tMetodo").innerHTML=C.map(c=>`<tr style="cursor:default"><td>${c.nombre}</td><td style="text-align:left;white-space:normal;font-family:var(--font-ui);min-width:220px">${c.comunas.join(", ")}</td><td style="text-align:left;white-space:normal;font-family:var(--font-ui)">${c.excl.join(", ")||"—"}</td><td>${c.lineas}</td><td>${c.dias_l} + ${c.dias_d}</td><td>${fmt(c.pulsos)}</td></tr>`).join("");
+$("tNota").textContent="Ordenadas de norte a sur. Selecciona un encabezado para ordenar y una ciudad para ver su ficha. Cobertura y población, sin las comunas con menos de 60 % de su población a 400 metros de un paradero: "+C.filter(c=>c.excl.length).map(c=>c.nombre+" sin "+c.excl.join(" y ")).join("; ")+". Buses por habitante de Gran Concepción, sobre las 7 comunas que cubre su registro por hora. Velocidad: martes, miércoles y domingo de "+NAC.muestra+".";
 
 /* KPI */
 function kpis(){
@@ -468,9 +452,8 @@ let rotPend=false;new MutationObserver(()=>{if(rotPend)return;rotPend=true;reque
 const tBtn=$("temaBtn");
 const icono=()=>{tBtn.textContent=document.documentElement.getAttribute("data-theme")==="dark"?"☀":"☾"};
 tBtn.onclick=()=>{const d=document.documentElement.getAttribute("data-theme")!=="dark";document.documentElement.setAttribute("data-theme",d?"dark":"light");try{localStorage.setItem("tema",d?"dark":"light")}catch(e){}icono();ponerFondo();pintar()};
-$("mMuestra").textContent=NAC.muestra;
 icono();ponerFondo();verZona("chile");rotularZoom();kpis();pintar();dibTabla();cargarVivo();setInterval(cargarVivo,3e5);
-const h0=location.hash.slice(1);if(["ciudades","dia","tabla","analisis","metodo"].includes(h0))ir(h0);
+const h0=location.hash.slice(1);if(["ciudades","dia","analisis"].includes(h0))ir(h0);
 window.addEventListener("resize",()=>{map.invalidateSize();pintar()});
 </script>
 </body>
