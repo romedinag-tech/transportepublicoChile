@@ -63,6 +63,10 @@ a{color:var(--accent)}
 .live-badge{display:inline-flex;align-items:center;gap:7px;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#fff}
 .led{width:8px;height:8px;border-radius:50%;background:#3ed18a;flex:none}
 .led.off{background:#9aa5b5}
+.led:not(.off){animation:latido 1.6s ease-in-out infinite}
+@keyframes latido{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.25;transform:scale(.8)}}
+.kpi .led{display:inline-block;width:7px;height:7px;margin-right:6px;vertical-align:1px;background:#12a150}
+.kpi .led.off{display:none}
 :root[data-theme="dark"] .led:not(.off){background:#ff6a1a;box-shadow:0 0 6px rgba(255,150,40,.85),0 0 16px rgba(255,106,26,.55)}
 .hdr-btn{border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.12);color:#fff;width:34px;height:34px;border-radius:9px;cursor:pointer;font-size:.95rem}
 .tabs{display:flex;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:6px;box-shadow:var(--sh);margin:0 0 18px}
@@ -182,7 +186,7 @@ footer{margin-top:26px;color:var(--ink-lo);font-size:.8rem;text-align:center}
   td:first-child{white-space:normal;min-width:104px;max-width:112px;box-shadow:2px 0 4px rgba(14,35,56,.08)}
   .leyenda{position:static;margin-top:8px;box-shadow:none}
 }
-@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}.led:not(.off){animation:none}}
 </style>
 </head>
 <body>
@@ -220,7 +224,7 @@ footer{margin-top:26px;color:var(--ink-lo);font-size:.8rem;text-align:center}
   </nav>
 
   <div class="kpis" aria-live="polite">
-    <div class="kpi"><span class="kic"><svg class="ic"><use href="#i-bus"/></svg></span><div class="n" id="kBuses">—</div><div class="l">Buses en ruta ahora</div><div class="s" id="kBusesN">Cargando…</div></div>
+    <div class="kpi"><span class="kic"><svg class="ic"><use href="#i-bus"/></svg></span><div class="n" id="kBuses">—</div><div class="l"><span class="led off" id="ledK" aria-hidden="true"></span>Buses en ruta ahora</div><div class="s" id="kBusesN">Cargando…</div></div>
     <div class="kpi"><span class="kic"><svg class="ic"><use href="#i-vel"/></svg></span><div class="n" id="kVel">—</div><div class="l">Velocidad en día laboral</div><div class="s">km/h, mínima y máxima</div></div>
     <div class="kpi"><span class="kic"><svg class="ic"><use href="#i-city"/></svg></span><div class="n" id="kComp">—</div><div class="l">Sistemas comparados</div><div class="s" id="kCompN"></div></div>
     <div class="kpi"><span class="kic"><svg class="ic"><use href="#i-time"/></svg></span><div class="n" id="kHoras">—</div><div class="l">Horas con la mitad de los buses</div><div class="s">mínima y máxima</div></div>
@@ -427,8 +431,8 @@ function kpis(){
   $("kVel").textContent=fmt(Math.min(...gr.map(c=>c.vel_lab)),1)+"–"+fmt(Math.max(...gr.map(c=>c.vel_lab)),1);
   $("kHoras").textContent=fmt(Math.min(...gr.map(c=>c.horas)),1)+"–"+fmt(Math.max(...gr.map(c=>c.horas)),1);
   $("kPob").textContent=fmt(cmp.reduce((s,c)=>s+c.pob,0)/1e6,1)+" M";
-  const led=$("led"),stgo=porId.santiago;
-  const off=(m,et)=>{led.classList.add("off");$("ledT").textContent=et;$("kBuses").textContent="—";$("kBusesN").textContent=m;$("banner").innerHTML=`${m} Gran Santiago, que no se captura en este sitio, opera cerca de <b>${fmt(Math.round(stgo.buses_pico/100)*100)}</b> buses en hora punta.`};
+  const marca=o=>[$("led"),$("ledK")].forEach(e=>e.classList.toggle("off",o)),stgo=porId.santiago;
+  const off=(m,et)=>{marca(true);$("ledT").textContent=et;$("kBuses").textContent="—";$("kBusesN").textContent=m;$("banner").innerHTML=`${m} Gran Santiago, que no se captura en este sitio, opera cerca de <b>${fmt(Math.round(stgo.buses_pico/100)*100)}</b> buses en hora punta.`};
   if(!vivo){off("Dato en vivo no disponible.","Sin dato");return}
   const con=Object.keys(vivo.ciudades).map(id=>({id,v:vivo.ciudades[id]})).filter(x=>x.v&&reciente(x.v)&&(x.v.buses||0)>0);
   if(!con.length){
@@ -438,7 +442,7 @@ function kpis(){
     off(sn?`Sin actualizar: último dato a las ${horaDe(sn)}.`:"Dato en vivo no disponible.","Sin actualizar");return}
   const tot=con.reduce((s,x)=>s+x.v.buses,0);let nor=0;con.forEach(x=>{const c=porId[x.id];const a=c&&c.normal[x.v.tipo];if(a&&a[x.v.bin]!=null)nor+=a[x.v.bin]});
   const ult=con.map(x=>x.v.snapshot).sort().pop(),h=horaDe(ult),edad=Math.round((Date.now()-new Date(ult).getTime())/6e4);
-  led.classList.toggle("off",edad>60);$("ledT").textContent=edad>60?`Hace ${edad} min`:"En vivo";$("kBuses").textContent=fmt(tot);$("kBusesN").textContent=`${con.length} ciudades, sin Gran Santiago`;
+  marca(edad>60);$("ledT").textContent=edad>60?`Hace ${edad} min`:"En vivo";$("kBuses").textContent=fmt(tot);$("kBusesN").textContent=`${con.length} ciudades, sin Gran Santiago`;
   $("banner").innerHTML=`A las <b>${h}</b> circulan <b>${fmt(tot)}</b> buses en <b>${con.length}</b> ciudades regionales${nor?`; el promedio histórico de esta franja es ${fmt(nor)}`:""}. Gran Santiago, que no se captura en este sitio, opera cerca de <b>${fmt(Math.round(stgo.buses_pico/100)*100)}</b> buses en hora punta.`;
 }
 async function cargarVivo(){try{const r=await fetch("data/vivo.json?t="+Math.floor(Date.now()/3e5),{cache:"no-store"});if(!r.ok)throw 0;vivo=await r.json()}catch(e){vivo=null}kpis();pintar()}
