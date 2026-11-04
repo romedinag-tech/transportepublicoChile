@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="es-CL">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Transporte público de Chile</title>
+<meta name="description" content="Datos resumen del transporte público por ciudad y buses en ruta en este momento.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2316365a'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet">
+<style>/*__LEAFLET_CSS__*/</style>
+<style>
+:root{
+  --paper:#FBFBFD;--surface:#FFFFFF;--surface-alt:#F4F6F9;--line:#E3E8EF;--line-2:#D6DEE9;
+  --ink:#0E2338;--ink-mid:#4A5A70;--ink-lo:#667489;
+  --navy:#16365a;--accent:#1F6FEB;--focus:#1F6FEB;--or:#B24E0B;
+  --grad:linear-gradient(135deg,#0E2338 0%,#16365a 60%,#21507F 100%);
+  --r:14px;--r-sm:10px;
+  --sh:0 1px 3px rgba(14,35,56,.05),0 8px 24px rgba(14,35,56,.05);
+  --font-display:'Source Serif 4',Georgia,serif;
+  --font-ui:'Inter',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  --font-data:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+  --seq-1:#C6D9F0;--seq-2:#8CB3DE;--seq-3:#4A80C0;--seq-4:#2A5C97;--seq-5:#16365A;
+  --marca:#4A80C0;--marca-borde:#FFFFFF;--pista:#EBEFF5;
+}
+:root[data-theme="dark"]{
+  --paper:#0a0d13;--surface:#151c27;--surface-alt:#1a212c;--line:#232c3a;--line-2:#2b3547;
+  --ink:#e9eef5;--ink-mid:#a3acbc;--ink-lo:#8a93a5;
+  --navy:#ff9d2f;--accent:#ff6a1a;--focus:#ff9d2f;--or:#ff9d2f;
+  --grad:linear-gradient(135deg,#12161f 0%,#0d1119 60%,#161d28 100%);
+  --sh:inset 0 1px 0 rgba(255,255,255,.06),0 18px 34px -12px rgba(0,0,0,.7);
+  --seq-1:#2b3f5c;--seq-2:#3f6796;--seq-3:#6b97c8;--seq-4:#a3c3e6;--seq-5:#dcebfa;
+  --marca:#6b97c8;--marca-borde:#0a0d13;--pista:#232c3a;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:64px}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-ui);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--font-display);letter-spacing:-.01em;margin:0;color:var(--ink)}
+h2{font-size:1.55rem;font-weight:600}
+h3{font-size:1.08rem;font-weight:600}
+a{color:var(--accent)}
+.num{font-family:var(--font-data);font-variant-numeric:tabular-nums}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.aviso{background:var(--surface-alt);border-bottom:1px solid var(--line);color:var(--ink-mid);font-size:.8rem;text-align:center;padding:5px 16px}
+header.top{position:sticky;top:0;z-index:1200;display:flex;align-items:center;gap:20px;padding:10px 24px;background:var(--grad);color:#fff}
+header.top .marca{font-family:var(--font-display);font-weight:700;font-size:1.08rem;white-space:nowrap}
+header.top nav{display:flex;gap:18px;margin-left:auto;font-size:.88rem}
+header.top nav a{color:#fff;opacity:.85;text-decoration:none}
+header.top nav a:hover{opacity:1;text-decoration:underline}
+.tema{border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);color:#fff;width:34px;height:34px;border-radius:9px;cursor:pointer;font-size:1rem}
+main{max-width:1240px;margin:0 auto;padding:0 24px 40px}
+.entrada{padding:34px 0 22px;max-width:780px}
+.entrada h1{font-size:2.05rem;line-height:1.15;font-weight:700;margin-bottom:10px}
+.entrada p{color:var(--ink-mid);font-size:1.05rem;margin:0}
+.kpis{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:14px;margin-bottom:18px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;box-shadow:var(--sh);min-width:0}
+.kpi .e{font-size:.8rem;color:var(--ink-mid);font-weight:500;display:flex;align-items:center;gap:7px}
+.kpi .v{font-family:var(--font-data);font-size:1.95rem;font-weight:600;color:var(--navy);line-height:1.15;margin:4px 0 2px}
+.kpi.g .v{font-size:2.6rem}
+.kpi .n{font-size:.8rem;color:var(--ink-lo)}
+.led{width:9px;height:9px;border-radius:50%;background:#2E8B57;flex:none}
+.led.off{background:var(--ink-lo)}
+:root[data-theme="dark"] .led:not(.off){background:#ff6a1a;box-shadow:0 0 6px rgba(255,150,40,.85),0 0 16px rgba(255,106,26,.55)}
+.controles{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 14px}
+.controles .t{font-size:.82rem;color:var(--ink-mid);margin-right:4px}
+.pill{border:1px solid var(--line-2);background:var(--surface);color:var(--ink);padding:7px 14px;min-height:36px;border-radius:20px;cursor:pointer;font:500 .85rem var(--font-ui)}
+.pill:hover{border-color:var(--navy)}
+.pill[aria-pressed="true"]{background:var(--navy);border-color:var(--navy);color:#fff}
+:root[data-theme="dark"] .pill[aria-pressed="true"]{color:#14100a}
+.tablero{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:16px;align-items:stretch}
+.caja{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);min-width:0}
+#mapa{height:680px;border-radius:var(--r);background:var(--surface-alt);z-index:1}
+.panel{padding:18px 20px;display:flex;flex-direction:column;min-width:0}
+.panel p.exp{color:var(--ink-mid);font-size:.88rem;margin:3px 0 12px}
+.ranking{display:grid;gap:1px;flex:1;align-content:start}
+.fila{display:grid;grid-template-columns:128px minmax(0,1fr) 66px;gap:10px;align-items:center;border:0;background:none;color:inherit;font:inherit;text-align:left;padding:4px 6px;border-radius:7px;cursor:pointer;min-height:32px;width:100%}
+.fila:hover{background:var(--surface-alt)}
+.fila.sel{background:var(--surface-alt);box-shadow:inset 3px 0 0 var(--accent)}
+.fila .c{font-size:.86rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fila .b{height:10px;background:var(--pista);border-radius:2px;overflow:hidden}
+.fila .b i{display:block;height:100%;background:var(--marca);border-radius:0 3px 3px 0}
+.fila .x{font-family:var(--font-data);font-size:.85rem;text-align:right;white-space:nowrap}
+.fila.apag .c,.fila.apag .x{color:var(--ink-lo)}
+.nota{font-size:.78rem;color:var(--ink-lo);margin:10px 0 0}
+.leyenda{position:absolute;left:10px;bottom:22px;z-index:800;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:9px;padding:8px 10px;font-size:.75rem;box-shadow:var(--sh);max-width:210px}
+.leyenda b{display:block;font-weight:600;margin-bottom:4px}
+.leyenda .i{display:flex;align-items:center;gap:7px;margin-top:2px;white-space:nowrap}
+.leyenda s{display:inline-block;width:13px;height:13px;border-radius:50%;border:1px solid var(--marca-borde);text-decoration:none;flex:none}
+.basemaps{position:absolute;right:10px;top:10px;z-index:800;display:flex;background:var(--surface);border:1px solid var(--line);border-radius:9px;overflow:hidden;box-shadow:var(--sh)}
+.basemaps button{border:0;background:none;color:var(--ink);padding:7px 11px;min-height:34px;font:500 .78rem var(--font-ui);cursor:pointer}
+.basemaps button[aria-pressed="true"]{background:var(--navy);color:#fff}
+:root[data-theme="dark"] .basemaps button[aria-pressed="true"]{color:#14100a}
+.mapwrap{position:relative;min-width:0}
+.leaflet-container{font-family:var(--font-ui)}
+.leaflet-tooltip{font:500 .8rem var(--font-ui)}
+section{margin-top:44px}
+section>.sub{color:var(--ink-mid);max-width:72ch;margin:4px 0 16px}
+.tablawrap{overflow-x:auto;padding:0}
+table{width:100%;border-collapse:collapse;font-size:.87rem;min-width:780px}
+th{font:600 .76rem var(--font-ui);color:var(--ink-mid);text-align:right;padding:11px 12px;border-bottom:1px solid var(--line-2);vertical-align:bottom}
+th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:var(--surface)}
+th button{all:unset;cursor:pointer}
+th button:hover{color:var(--accent)}
+th button:focus-visible{outline:2px solid var(--focus)}
+td{padding:8px 12px;border-bottom:1px solid var(--line);text-align:right;font-family:var(--font-data);font-variant-numeric:tabular-nums;white-space:nowrap}
+td:first-child{font-family:var(--font-ui);font-weight:500}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:var(--surface-alt)}
+tbody tr.sel td{background:var(--surface-alt)}
+tbody tr:last-child td{border-bottom:0}
+.marca-p{color:var(--ink-lo);font-weight:400}
+.grilla{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.tema-c{padding:18px 20px}
+.tema-c p{color:var(--ink-mid);font-size:.9rem;margin:6px 0 0}
+.dos{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.dos .caja{padding:18px 20px}
+.dos p{color:var(--ink-mid);font-size:.92rem;margin:6px 0 0}
+details{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);margin-bottom:8px}
+summary{cursor:pointer;padding:12px 16px;font-family:var(--font-display);font-weight:600}
+details>div{padding:0 16px 14px;color:var(--ink-mid);font-size:.9rem;max-width:80ch}
+footer{border-top:1px solid var(--line);margin-top:48px;padding:20px 24px;color:var(--ink-lo);font-size:.82rem;text-align:center}
+@media (max-width:980px){
+  .tablero{grid-template-columns:1fr}
+  #mapa{height:520px}
+  .kpis{grid-template-columns:1fr 1fr}
+  .kpi.g{grid-column:1/-1}
+  .grilla{grid-template-columns:1fr 1fr}
+}
+@media (max-width:620px){
+  header.top{padding:9px 16px;gap:10px}
+  header.top nav{display:none}
+  .tema{margin-left:auto}
+  main{padding:0 16px 32px}
+  .entrada{padding:22px 0 16px}
+  .entrada h1{font-size:1.6rem}
+  .kpi .v{font-size:1.5rem}
+  .kpi.g .v{font-size:2.2rem}
+  .grilla,.dos{grid-template-columns:1fr}
+  .fila{grid-template-columns:104px minmax(0,1fr) 60px;gap:8px}
+  #mapa{height:460px}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<div class="aviso">Versión de trabajo: las cifras y los textos pueden cambiar.</div>
+<header class="top">
+  <div class="marca" id="marca">Transporte público de Chile</div>
+  <nav aria-label="Secciones">
+    <a href="#comparacion">Ciudades</a>
+    <a href="#tabla">Tabla</a>
+    <a href="#analisis">Análisis</a>
+    <a href="#metodo">Método</a>
+  </nav>
+  <button class="tema" id="temaBtn" aria-label="Cambiar entre tema claro y oscuro" title="Tema claro u oscuro">☾</button>
+</header>
+<main>
+  <div class="entrada">
+    <h1>El transporte público de Chile, ciudad por ciudad</h1>
+    <p>Los buses de las ciudades reguladas transmiten su posición a lo largo del día. Con esos registros es posible observar y comparar cómo opera cada sistema.</p>
+  </div>
+  <div class="kpis" aria-live="polite">
+    <div class="kpi g"><div class="e"><span class="led off" id="led"></span><span id="kE">Buses en ruta ahora</span></div><div class="v" id="kBuses">—</div><div class="n" id="kBusesN">Cargando el dato en vivo…</div></div>
+    <div class="kpi"><div class="e">Ciudades en vivo</div><div class="v" id="kCiud">—</div><div class="n" id="kCiudN"></div></div>
+    <div class="kpi"><div class="e">Ciudades comparadas</div><div class="v" id="kComp">—</div><div class="n">con un mismo método</div></div>
+    <div class="kpi"><div class="e">Personas en las ciudades comparadas</div><div class="v" id="kPob">—</div><div class="n">Censo 2024</div></div>
+  </div>
+
+  <section id="comparacion" style="margin-top:28px">
+    <div class="controles" role="group" aria-label="Indicador">
+      <span class="t">Ver:</span>
+      <span id="pills" style="display:contents"></span>
+    </div>
+    <div class="tablero">
+      <div class="caja mapwrap">
+        <div id="mapa" role="region" aria-label="Mapa de ciudades de Chile"></div>
+        <div class="basemaps" role="group" aria-label="Fondo del mapa">
+          <button id="bmBase" aria-pressed="true">Mapa</button><button id="bmSat" aria-pressed="false">Satélite</button>
+        </div>
+        <div class="leyenda" id="leyenda"></div>
+      </div>
+      <div class="caja panel">
+        <h3 id="pTit"></h3>
+        <p class="exp" id="pExp"></p>
+        <div class="ranking" id="ranking"></div>
+        <p class="nota" id="pNota"></p>
+      </div>
+    </div>
+  </section>
+
+  <section id="tabla">
+    <h2>Las ciudades lado a lado</h2>
+    <p class="sub">Haz clic en un encabezado para ordenar y en una ciudad para ubicarla en el mapa.</p>
+    <div class="caja tablawrap"><table id="tablaC"><thead><tr id="thead"></tr></thead><tbody id="tbody"></tbody></table></div>
+  </section>
+
+  <section id="analisis">
+    <h2>Lo que estos datos permiten analizar</h2>
+    <p class="sub">Este resumen muestra una parte de lo que permiten los registros de operación. Con ellos, y cruzados con censo, encuestas y validaciones, es posible responder preguntas específicas de cada sistema.</p>
+    <div class="dos">
+      <div class="caja"><h3>Para organismos públicos</h3><p>Cobertura y nivel de servicio por territorio, brechas por nivel socioeconómico y horario, comparación de la oferta con el programa publicado, y priorización de infraestructura con evidencia.</p></div>
+      <div class="caja"><h3>Para operadores</h3><p>Uso del GPS que ya existe a bordo: regularidad y agrupamiento de buses, tiempos de ciclo, velocidad por tramo y por hora, distribución de la flota y ajuste de la oferta a la demanda durante el día.</p></div>
+    </div>
+    <div class="grilla">
+      <div class="caja tema-c"><h3>Velocidad por eje</h3><p>Hora a hora y en días críticos, para identificar dónde se pierde tiempo y cuánto.</p></div>
+      <div class="caja tema-c"><h3>Efecto de los corredores</h3><p>Uso de la infraestructura dedicada y estabilidad de la velocidad frente a vías mixtas.</p></div>
+      <div class="caja tema-c"><h3>Cobertura y accesibilidad</h3><p>A nivel de manzana censal: acceso, espera y alcance a salud, educación y empleo.</p></div>
+      <div class="caja tema-c"><h3>Oferta y demanda</h3><p>Forma horaria de la oferta frente a las validaciones y perfiles de carga por línea.</p></div>
+      <div class="caja tema-c"><h3>Regularidad del servicio</h3><p>Intervalos reales entre buses, agrupamiento y su efecto en la espera de las personas.</p></div>
+      <div class="caja tema-c"><h3>Calidad del dato</h3><p>Control de los registros GPS y de los campos que informa cada sistema.</p></div>
+    </div>
+  </section>
+
+  <section id="metodo">
+    <h2>Método y límites</h2>
+    <p class="sub">Todas las cifras son agregados por ciudad. Este sitio no publica patentes, posiciones de buses individuales ni microdato.</p>
+    <details open><summary>Cómo se compara la velocidad</summary><div>Velocidad física entre pulsos GPS consecutivos, con un pulso por bus por minuto, sin terminales, entre 07:00 y 21:00. Se usan martes y miércoles (día laboral) y domingo de la segunda semana de <span id="mMuestra"></span>, sin feriados. Sirve para comparar ciudades, no para fijar un valor absoluto: para Gran Santiago, DTPM informa 18,3 km/h en día laboral en 2024 con otra definición. Diferencias menores a unos 0,6 km/h no se distinguen.</div></details>
+    <details><summary>Qué significa cada indicador</summary><div><p><b>Cobertura:</b> población a 400 metros o menos de un paradero; no dice cuánto servicio pasa por ese paradero.</p><p><b>Buses por 10.000 habitantes:</b> buses en ruta en la hora punta sobre la población de la ciudad. No considera el tamaño de los buses, y en Gran Santiago no incluye Metro.</p><p><b>Horas de servicio:</b> horas de un día laboral con al menos la mitad de los buses de punta.</p><p><b>Oferta en valle:</b> buses en ruta entre 10:00 y 16:00 como porcentaje de la hora punta.</p></div></details>
+    <details><summary>El dato en vivo</summary><div>Se actualiza cada 30 minutos desde el GTFS-RT de cada ciudad, y la captura se detiene entre 01:00 y 05:00. Lo normal es el promedio histórico de esa franja y ese tipo de día. Gran Santiago y La Serena no tienen captura en vivo en este sitio; Linares se captura, pero aún no tiene histórico.</div></details>
+    <details><summary>Fuentes</summary><div>Registros GPS entregados por el Ministerio de Transportes y Telecomunicaciones y DTPM por solicitud de transparencia (2025–2026); GTFS y GTFS-RT regional; Censo 2024 (INE); cartografía de OpenStreetMap y Esri. La Serena se muestra aparte porque la fuente cubre sólo 2 líneas.</div></details>
+  </section>
+</main>
+<footer>Elaboración de Rodrigo Medina González. Datos agregados; sin patentes ni posiciones individuales.</footer>
+<script>/*__LEAFLET_JS__*/</script>
+<script>
+"use strict";
+const NAC=/*__NACIONAL__*/null;
+const C=NAC.ciudades, porId=Object.fromEntries(C.map(c=>[c.id,c]));
+const fmt=(x,d=0)=>x==null?"—":x.toLocaleString("es-CL",{minimumFractionDigits:d,maximumFractionDigits:d});
+const css=k=>getComputedStyle(document.documentElement).getPropertyValue(k).trim();
+let vivo=null, indicador="vivo", sel=null;
+const IND={
+ vivo:{t:"Buses en ruta ahora",e:"Buses en servicio fuera de terminal, en la última captura de cada ciudad.",u:"buses",d:0,get:c=>vivoDe(c)?.buses,tam:true},
+ vel_lab:{t:"Velocidad en día laboral",e:"Velocidad de los buses entre 07:00 y 21:00.",u:"km/h",d:1,get:c=>c.vel_lab},
+ gana_dom:{t:"Aumento de velocidad en domingo",e:"Cuánto más rápido operan los buses en domingo que en día laboral.",u:"%",d:0,get:c=>c.gana_dom},
+ buses_10k:{t:"Buses por 10.000 habitantes",e:"Buses en ruta en la hora punta, por población de la ciudad.",u:"",d:1,get:c=>c.buses_10k},
+ cob400:{t:"Cobertura a 400 metros",e:"Población a 400 metros o menos de un paradero.",u:"%",d:1,get:c=>c.cob400},
+ horas:{t:"Horas de servicio",e:"Horas de un día laboral con al menos la mitad de los buses de punta.",u:"h",d:1,get:c=>c.horas},
+ valle:{t:"Oferta en valle",e:"Buses entre 10:00 y 16:00 como porcentaje de la hora punta.",u:"%",d:0,get:c=>c.valle}
+};
+function vivoDe(c){const v=vivo&&vivo.ciudades[c.id];return v||null}
+function edadMin(v){if(!v||!v.snapshot)return null;return (Date.now()-new Date(v.snapshot).getTime())/60000}
+const reciente=v=>{const e=edadMin(v);return e!=null&&e<=75};
+
+/* mapa */
+const map=L.map("mapa",{zoomControl:true,attributionControl:true,preferCanvas:false,scrollWheelZoom:false}).setView([-37,-71.5],4);
+map.on("focus",()=>map.scrollWheelZoom.enable());map.on("blur",()=>map.scrollWheelZoom.disable());
+const ESRI="https://server.arcgisonline.com/ArcGIS/rest/services/";
+const tl=(p,o={})=>L.tileLayer(ESRI+p+"/MapServer/tile/{z}/{y}/{x}",Object.assign({maxNativeZoom:16,maxZoom:18,attribution:"Esri, OpenStreetMap"},o));
+const capas={claro:L.layerGroup([tl("Canvas/World_Light_Gray_Base"),tl("Canvas/World_Light_Gray_Reference")]),
+              oscuro:L.layerGroup([tl("Canvas/World_Dark_Gray_Base"),tl("Canvas/World_Dark_Gray_Reference")]),
+              sat:L.layerGroup([tl("World_Imagery",{attribution:"Esri"}),tl("Reference/World_Boundaries_and_Places",{attribution:"Esri"})])};
+let fondo="base",capaAct=null;
+function ponerFondo(){const oscuro=document.documentElement.getAttribute("data-theme")==="dark";const n=fondo==="sat"?capas.sat:(oscuro?capas.oscuro:capas.claro);if(capaAct===n)return;if(capaAct)map.removeLayer(capaAct);n.addTo(map);capaAct=n;n.eachLayer(l=>l.bringToBack&&l.bringToBack())}
+const marcas={};
+C.forEach(c=>{const m=L.circleMarker([c.lat,c.lon],{radius:7,weight:1.5,fillOpacity:.85});m.on("click",()=>elegir(c.id,true));m.bindTooltip("",{direction:"top"});m.addTo(map);marcas[c.id]=m});
+map.fitBounds(L.latLngBounds(C.map(c=>[c.lat,c.lon])).pad(.08));
+function clases(vals){const s=[...vals].sort((a,b)=>a-b);const q=f=>s[Math.min(s.length-1,Math.floor(f*s.length))];return [q(.2),q(.4),q(.6),q(.8)]}
+function colorDe(x,cor){const i=cor.filter(k=>x>=k).length;return css("--seq-"+(i+1))}
+function pintar(){
+  const I=IND[indicador];const comp=C.filter(c=>!c.parcial&&I.get(c)!=null);const vals=comp.map(I.get);
+  const ley=document.getElementById("leyenda");
+  if(I.tam){
+    const mx=Math.max(1,...vals);
+    C.forEach(c=>{const m=marcas[c.id],x=I.get(c),ok=x!=null&&reciente(vivoDe(c));
+      if(!c.vivo||!ok){m.setStyle({radius:4,fillColor:css("--ink-lo"),color:css("--marca-borde"),fillOpacity:.6})}
+      else{m.setStyle({radius:Math.max(4,26*Math.sqrt(x/mx)),fillColor:css("--marca"),color:css("--marca-borde"),fillOpacity:.72})}});
+    const r=[Math.round(mx),Math.round(mx/4)];
+    ley.innerHTML=`<b>Buses en ruta ahora</b><div class="i"><s style="background:var(--marca);width:${Math.round(2*26*Math.sqrt(r[1]/mx))}px;height:${Math.round(2*26*Math.sqrt(r[1]/mx))}px"></s>${fmt(r[1])}</div><div class="i"><s style="background:var(--marca);width:${Math.max(13,Math.round(26*1.2))}px;height:${Math.max(13,Math.round(26*1.2))}px"></s>${fmt(r[0])}</div><div class="i"><s style="background:var(--ink-lo);width:8px;height:8px"></s>Sin dato en vivo</div>`;
+  }else{
+    const cor=clases(vals);
+    C.forEach(c=>{const m=marcas[c.id],x=I.get(c);if(c.parcial||x==null){m.setStyle({radius:5,fillColor:css("--ink-lo"),color:css("--marca-borde"),fillOpacity:.6})}else{m.setStyle({radius:9,fillColor:colorDe(x,cor),color:css("--marca-borde"),fillOpacity:fondo==="sat"?.8:.92})}});
+    const mn=Math.min(...vals),mx=Math.max(...vals),br=[mn,...cor,mx];
+    ley.innerHTML=`<b>${I.t}${I.u?" ("+I.u+")":""}</b>`+[0,1,2,3,4].map(i=>`<div class="i"><s style="background:var(--seq-${i+1})"></s>${fmt(br[i],I.d)} a ${fmt(br[i+1],I.d)}</div>`).join("")+`<div class="i"><s style="background:var(--ink-lo);width:8px;height:8px"></s>Sin comparar</div>`;
+  }
+  C.forEach(c=>{const x=I.get(c);const nota=c.parcial?" (fuente parcial)":"";marcas[c.id].setTooltipContent(`<b>${c.nombre}</b><br>${x==null?"Sin dato":fmt(x,I.d)+(I.u?" "+I.u:"")}${nota}`);
+    if(sel===c.id)marcas[c.id].setStyle({weight:3,color:css("--accent")}).bringToFront();else marcas[c.id].setStyle({weight:1.5})});
+  dibRanking();
+}
+function dibRanking(){
+  const I=IND[indicador];
+  document.getElementById("pTit").textContent=I.t;document.getElementById("pExp").textContent=I.e;
+  const f=C.map(c=>({c,x:I.get(c)})).sort((a,b)=>(a.c.parcial-b.c.parcial)||((b.x??-1)-(a.x??-1)));
+  const mx=Math.max(1,...f.filter(y=>!y.c.parcial&&y.x!=null).map(y=>y.x));
+  const R=document.getElementById("ranking");R.innerHTML="";
+  f.forEach(({c,x})=>{const b=document.createElement("button");b.className="fila"+(sel===c.id?" sel":"")+((x==null||c.parcial)?" apag":"");b.setAttribute("aria-pressed",sel===c.id);
+    b.title=c.parcial?"Fuente parcial: 2 líneas":"";
+    b.innerHTML=`<span class="c">${c.nombre}${c.parcial?" *":""}</span><span class="b"><i style="width:${x==null?0:Math.min(100,100*x/mx)}%"></i></span><span class="x">${x==null?"—":fmt(x,I.d)+(I.u==="%"?" %":"")}</span>`;
+    b.onclick=()=>elegir(c.id,true);R.appendChild(b)});
+  const n=[];if(C.some(c=>c.parcial))n.push("* La Serena: la fuente cubre sólo 2 líneas; no se compara.");if(indicador==="vivo")n.push(vivoTxt());
+  if(indicador==="vel_lab")n.push("Sirve para comparar ciudades, no como valor absoluto.");
+  if(indicador==="buses_10k")n.push("En Gran Santiago no incluye Metro.");
+  document.getElementById("pNota").textContent=n.join(" ");
+}
+function vivoTxt(){if(!vivo)return "";const s=C.filter(c=>c.vivo&&!reciente(vivoDe(c))).map(c=>c.nombre);return s.length?"Sin dato reciente: "+s.join(", ")+".":""}
+function elegir(id,centrar){sel=sel===id?null:id;pintar();dibTabla();if(sel&&centrar){const c=porId[sel];const z=map.getZoom();map.setView([c.lat,c.lon],Math.max(z,window.innerWidth<620?6:7));marcas[sel].openTooltip()}}
+
+/* selector */
+const P=document.getElementById("pills");
+Object.entries(IND).forEach(([k,v])=>{const b=document.createElement("button");b.className="pill";b.textContent={vivo:"En vivo",vel_lab:"Velocidad",gana_dom:"Velocidad en domingo",buses_10k:"Oferta por habitante",cob400:"Cobertura",horas:"Horas de servicio",valle:"Oferta en valle"}[k];b.dataset.k=k;b.setAttribute("aria-pressed",k===indicador);b.onclick=()=>{indicador=k;P.querySelectorAll(".pill").forEach(x=>x.setAttribute("aria-pressed",x.dataset.k===k));pintar()};P.appendChild(b)});
+
+/* tabla */
+const COL=[{k:"nombre",t:"Ciudad"},{k:"pob",t:"Población",d:0},{k:"vel_lab",t:"Velocidad laboral (km/h)",d:1},{k:"vel_dom",t:"Velocidad domingo (km/h)",d:1},{k:"gana_dom",t:"Aumento domingo (%)",d:0},{k:"buses_pico",t:"Buses en punta",d:0},{k:"buses_10k",t:"Buses por 10.000 hab.",d:1},{k:"cob400",t:"Cobertura 400 m (%)",d:1},{k:"horas",t:"Horas de servicio",d:1},{k:"pct_22",t:"Buses a las 22 h (% de punta)",d:0},{k:"valle",t:"Oferta en valle (%)",d:0}];
+let orden={k:"lat",dir:-1};
+function dibTabla(){
+  const f=[...C].sort((a,b)=>{const x=a[orden.k],y=b[orden.k];return typeof x==="string"?orden.dir*x.localeCompare(y,"es"):orden.dir*((x??-1)-(y??-1))});
+  document.getElementById("thead").innerHTML=COL.map(c=>`<th scope="col" aria-sort="${orden.k===c.k?(orden.dir>0?"ascending":"descending"):"none"}"><button data-k="${c.k}">${c.t}${orden.k===c.k?(orden.dir>0?" ▲":" ▼"):""}</button></th>`).join("");
+  document.querySelectorAll("#thead button").forEach(b=>b.onclick=()=>{const k=b.dataset.k;orden={k,dir:orden.k===k?-orden.dir:(k==="nombre"?1:-1)};dibTabla()});
+  const T=document.getElementById("tbody");T.innerHTML="";
+  f.forEach(c=>{const tr=document.createElement("tr");if(sel===c.id)tr.className="sel";tr.tabIndex=0;tr.innerHTML=COL.map(k=>k.k==="nombre"?`<td>${c.nombre}${c.parcial?' <span class="marca-p">*</span>':""}</td>`:`<td>${fmt(c[k.k],k.d)}</td>`).join("");tr.onclick=()=>{elegir(c.id,true);document.getElementById("comparacion").scrollIntoView({behavior:"smooth"})};tr.onkeydown=e=>{if(e.key==="Enter")tr.click()};T.appendChild(tr)});
+}
+
+/* KPI */
+function kpis(){
+  const comp=C.filter(c=>!c.parcial);
+  document.getElementById("kComp").textContent=comp.length;
+  document.getElementById("kPob").textContent=(comp.reduce((s,c)=>s+c.pob,0)/1e6).toLocaleString("es-CL",{maximumFractionDigits:1})+" M";
+  const led=document.getElementById("led"),kB=document.getElementById("kBuses"),kN=document.getElementById("kBusesN"),kC=document.getElementById("kCiud"),kCN=document.getElementById("kCiudN");
+  if(!vivo){kN.textContent="El dato en vivo no está disponible en este momento.";kC.textContent="—";return}
+  const conC=Object.keys(vivo.ciudades).map(id=>({id,v:vivo.ciudades[id]})).filter(x=>x.v&&reciente(x.v)&&(x.v.buses||0)>0);
+  const tot=conC.reduce((s,x)=>s+x.v.buses,0);
+  kC.textContent=conC.length;kCN.textContent="de "+Object.keys(vivo.ciudades).length+" con captura";
+  if(!conC.length){led.classList.add("off");kB.textContent="—";kN.textContent="La captura se detiene de 01:00 a 05:00 y puede haber menos servicio a esta hora.";return}
+  led.classList.remove("off");kB.textContent=fmt(tot);
+  let nor=0;conC.forEach(x=>{const c=porId[x.id];const a=c&&c.normal[x.v.tipo];if(a&&a[x.v.bin]!=null)nor+=a[x.v.bin]});
+  const ult=conC.map(x=>new Date(x.v.snapshot)).sort((a,b)=>b-a)[0];
+  const h=ult.toLocaleTimeString("es-CL",{hour:"2-digit",minute:"2-digit",hourCycle:"h23",timeZone:"America/Santiago"});
+  kN.textContent=`A las ${h}, en ${conC.length} ciudades`+(nor?`. Lo normal a esta hora: ${fmt(nor)}`:"")+".";
+}
+async function cargarVivo(){try{const r=await fetch("data/vivo.json?t="+Math.floor(Date.now()/3e5),{cache:"no-store"});if(!r.ok)throw 0;vivo=await r.json()}catch(e){vivo=null}kpis();pintar()}
+
+/* tema */
+try{const t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}
+const tBtn=document.getElementById("temaBtn");
+function icono(){tBtn.textContent=document.documentElement.getAttribute("data-theme")==="dark"?"☀":"☾"}
+tBtn.onclick=()=>{const d=document.documentElement.getAttribute("data-theme")!=="dark";document.documentElement.setAttribute("data-theme",d?"dark":"light");try{localStorage.setItem("tema",d?"dark":"light")}catch(e){}icono();ponerFondo();pintar()};
+const bb=document.getElementById("bmBase"),bs=document.getElementById("bmSat");
+function fondoSet(f){fondo=f;bb.setAttribute("aria-pressed",f==="base");bs.setAttribute("aria-pressed",f==="sat");ponerFondo();pintar()}
+bb.onclick=()=>fondoSet("base");bs.onclick=()=>fondoSet("sat");
+document.getElementById("mMuestra").textContent=NAC.muestra;
+icono();ponerFondo();kpis();pintar();dibTabla();cargarVivo();setInterval(cargarVivo,3e5);
+window.addEventListener("resize",()=>map.invalidateSize());
+</script>
+</body>
+</html>

@@ -1,9 +1,9 @@
-# Transporte público de Chile — en vivo
+# Transporte público de Chile
 
-Resumen nacional del transporte público regional: todas las ciudades con captura en vivo, a la vez,
-cada una comparada con lo normal de esa hora y ese tipo de día.
+Tablero público con datos resumen del transporte público por ciudad y buses en ruta en este momento. Versión de trabajo.
 
-Los datos son agregados de sistema publicados por cada tablero de ciudad. No se publican patentes ni
-posiciones de buses individuales.
+Sólo publica agregados por ciudad: no incluye patentes, posiciones de buses individuales ni microdato.
 
-- Encargo y fuentes: [`PLAN_RESUMEN_NACIONAL.md`](PLAN_RESUMEN_NACIONAL.md)
+- `site/` es lo único que se publica.
+- `scripts/vivo.py` actualiza el dato en vivo cada 30 minutos por GitHub Actions.
+- `build/` arma la página desde los agregados.

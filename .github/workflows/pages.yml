@@ -1,0 +1,36 @@
+name: Publicar sitio
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Cada 30 min, salvo el apagón de la captura de 01:00 a 05:00 de Chile (04-08 UTC en horario de verano).
+    - cron: "7,37 0-3,9-23 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python scripts/vivo.py
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4
