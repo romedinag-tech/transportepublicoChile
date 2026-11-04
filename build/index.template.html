@@ -124,7 +124,7 @@ footer{border-top:1px solid var(--line);margin-top:48px;padding:20px 24px;color:
   .tablero{grid-template-columns:1fr}
   #mapa{height:520px}
   .kpis{grid-template-columns:1fr 1fr}
-  .kpi.g{grid-column:1/-1}
+  .kpi.g,.kpi:last-child{grid-column:1/-1}
   .grilla{grid-template-columns:1fr 1fr}
 }
 @media (max-width:620px){
@@ -265,9 +265,10 @@ function pintar(){
     const mx=Math.max(1,...vals);
     C.forEach(c=>{const m=marcas[c.id],x=I.get(c),ok=x!=null&&reciente(vivoDe(c));
       if(!c.vivo||!ok){m.setStyle({radius:4,fillColor:css("--ink-lo"),color:css("--marca-borde"),fillOpacity:.6})}
-      else{m.setStyle({radius:Math.max(4,26*Math.sqrt(x/mx)),fillColor:css("--marca"),color:css("--marca-borde"),fillOpacity:.72})}});
-    const r=[Math.round(mx),Math.round(mx/4)];
-    ley.innerHTML=`<b>Buses en ruta ahora</b><div class="i"><s style="background:var(--marca);width:${Math.round(2*26*Math.sqrt(r[1]/mx))}px;height:${Math.round(2*26*Math.sqrt(r[1]/mx))}px"></s>${fmt(r[1])}</div><div class="i"><s style="background:var(--marca);width:${Math.max(13,Math.round(26*1.2))}px;height:${Math.max(13,Math.round(26*1.2))}px"></s>${fmt(r[0])}</div><div class="i"><s style="background:var(--ink-lo);width:8px;height:8px"></s>Sin dato en vivo</div>`;
+      else{m.setStyle({radius:Math.max(4,20*Math.sqrt(x/mx)),fillColor:css("--marca"),color:css("--marca-borde"),fillOpacity:.72})}});
+    /* El diámetro de la leyenda es el mismo del mapa: 2 × 20 × √(x/máximo). */
+    const dia=x=>Math.round(40*Math.sqrt(x/mx)),r=[Math.round(mx),Math.round(mx/4)];
+    ley.innerHTML=`<b>Buses en ruta ahora</b><div class="i"><s style="background:var(--marca);width:${dia(r[1])}px;height:${dia(r[1])}px"></s>${fmt(r[1])}</div><div class="i"><s style="background:var(--marca);width:${dia(r[0])}px;height:${dia(r[0])}px"></s>${fmt(r[0])}</div><div class="i"><s style="background:var(--ink-lo);width:8px;height:8px"></s>Sin dato en vivo</div>`;
   }else{
     const cor=clases(vals);
     C.forEach(c=>{const m=marcas[c.id],x=I.get(c);if(c.parcial||x==null){m.setStyle({radius:5,fillColor:css("--ink-lo"),color:css("--marca-borde"),fillOpacity:.6})}else{m.setStyle({radius:9,fillColor:colorDe(x,cor),color:css("--marca-borde"),fillOpacity:fondo==="sat"?.8:.92})}});
