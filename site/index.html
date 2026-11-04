@@ -1,14 +1,19 @@
 <!doctype html>
-<html lang="es-CL">
+<html lang="es-CL" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>Transporte público de Chile</title>
 <meta name="description" content="Datos resumen del transporte público por ciudad y buses en ruta en este momento.">
+<meta property="og:title" content="Transporte público de Chile">
+<meta property="og:description" content="Velocidad, cobertura y oferta de los buses, ciudad por ciudad, a partir de los registros GPS.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#16365a">
+<script>try{const t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2316365a'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%23fff'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 <style>/* required styles */
 
 .leaflet-pane,
@@ -672,217 +677,805 @@ svg.leaflet-image-layer.leaflet-interactive path {
 	}
 </style>
 <style>
+/* grafico-interactivo · estilos. Los colores son tokens --gi-*: un tablero que ya tiene su paleta los redefine en su :root y
+   el motor los lee con getComputedStyle al dibujar, así que un cambio de tema repinta solo. */
+:root {
+  --gi-surface: #FFFFFF; --gi-bg: #F7F6F2; --gi-ink: #1A1A1A; --gi-ink-mid: #4A4A48; --gi-ink-lo: #8A8984;
+  --gi-line: #E4E2DC; --gi-accent: #C2410C;
+  /* paleta de series (la del tablero de Vespucio: aceite propio, azul consultor, rojo concesionaria, morado, verde) */
+  --gi-s1: #1A1A1A; --gi-s2: #C2410C; --gi-s3: #2563EB; --gi-s4: #DC2626; --gi-s5: #7C3AED; --gi-s6: #059669;
+  --gi-s7: #CA8A04; --gi-s8: #0891B2;
+  /* categorías de hitos */
+  --gi-h-obra: #DC2626; --gi-h-conectada: #059669; --gi-h-compite: #2563EB;
+  /* componentes apilados */
+  --gi-c1: #1E3A5F; --gi-c2: #3B82F6; --gi-c3: #93C5FD; --gi-c4: #F59E0B; --gi-c5: #FCD34D; --gi-c6: #A3A3A3;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --gi-surface: #1C1C1B; --gi-bg: #121211; --gi-ink: #EDEDEA; --gi-ink-mid: #BDBCB6; --gi-ink-lo: #8A8984;
+    --gi-line: #2E2E2C; --gi-accent: #FB923C;
+    --gi-s1: #EDEDEA; --gi-s2: #FB923C; --gi-s3: #60A5FA; --gi-s4: #F87171; --gi-s5: #A78BFA; --gi-s6: #34D399;
+    --gi-s7: #FACC15; --gi-s8: #22D3EE;
+    --gi-h-obra: #F87171; --gi-h-conectada: #34D399; --gi-h-compite: #60A5FA;
+    --gi-c1: #93C5FD; --gi-c2: #3B82F6; --gi-c3: #1E40AF; --gi-c4: #F59E0B; --gi-c5: #FCD34D; --gi-c6: #737373;
+  }
+}
+:root[data-theme="dark"] {
+  --gi-surface: #1C1C1B; --gi-bg: #121211; --gi-ink: #EDEDEA; --gi-ink-mid: #BDBCB6; --gi-ink-lo: #8A8984;
+  --gi-line: #2E2E2C; --gi-accent: #FB923C;
+  --gi-s1: #EDEDEA; --gi-s2: #FB923C; --gi-s3: #60A5FA; --gi-s4: #F87171; --gi-s5: #A78BFA; --gi-s6: #34D399;
+  --gi-s7: #FACC15; --gi-s8: #22D3EE;
+  --gi-h-obra: #F87171; --gi-h-conectada: #34D399; --gi-h-compite: #60A5FA;
+  --gi-c1: #93C5FD; --gi-c2: #3B82F6; --gi-c3: #1E40AF; --gi-c4: #F59E0B; --gi-c5: #FCD34D; --gi-c6: #737373;
+}
+
+.gi-host { font-family: Inter, 'Segoe UI', Helvetica, Arial, sans-serif; color: var(--gi-ink); min-width: 0; }
+.gi-card { background: var(--gi-surface); border: 1px solid var(--gi-line); border-radius: 10px; padding: 14px 16px 12px; }
+.gi-t { font-size: 14px; font-weight: 650; margin: 0 0 8px; line-height: 1.3; }
+.gi-cuerpo { position: relative; }
+/* width:100% sólo sobre el gráfico, nunca un svg{} global: un selector genérico colapsa los SVG de otras librerías (Leaflet) */
+.gi-svg { display: block; width: 100%; height: auto; overflow: visible; cursor: zoom-in; font-family: inherit; }
+#gi-lupa .gi-svg { cursor: crosshair; }
+.gi-ley { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin-top: 8px; font-size: 12px; color: var(--gi-ink-mid); }
+.gi-chip, .gi-leyb { display: inline-flex; align-items: center; gap: 6px; font: inherit; color: inherit; }
+.gi-leyb { background: none; border: 1px solid var(--gi-line); border-radius: 999px; padding: 2px 9px 2px 6px; cursor: pointer; }
+.gi-leyb:hover { border-color: var(--gi-ink-lo); }
+.gi-leyb:focus-visible, .gi-seg button:focus-visible, .gi-btn:focus-visible { outline: 2px solid var(--gi-accent); outline-offset: 1px; }
+.gi-leyb.off { opacity: .45; text-decoration: line-through; }
+.gi-box i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; }
+.gi-leyb i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; }
+.gi-box i.gi-rombo { width: 9px; height: 9px; transform: rotate(45deg); border-radius: 0; margin: 0 2px; }
+.gi-box i.gi-circ { width: 9px; height: 9px; border-radius: 50%; border: 2px solid; background: var(--gi-surface); }
+.gi-nota { font-size: 11.5px; color: var(--gi-ink-lo); margin-top: 8px; line-height: 1.45; }
+.gi-mut { color: var(--gi-ink-lo); }
+.gi-seg { display: inline-flex; border: 1px solid var(--gi-line); border-radius: 8px; overflow: hidden; margin: 0 0 8px; flex-wrap: wrap; }
+.gi-seg button { font: inherit; font-size: 12px; background: none; border: 0; padding: 4px 11px; color: var(--gi-ink-mid); cursor: pointer; }
+.gi-seg button + button { border-left: 1px solid var(--gi-line); }
+.gi-seg button.on { background: var(--gi-ink); color: var(--gi-surface); }
+.gi-hito { cursor: help; }
+/* desplegable de hitos en la leyenda */
+.gi-tipw { position: relative; display: inline-flex; align-items: center; gap: 5px; cursor: help; color: var(--gi-ink-mid); }
+.gi-tipi { display: inline-grid; place-items: center; width: 15px; height: 15px; border-radius: 50%; border: 1px solid var(--gi-ink-lo); font-size: 10px; }
+.gi-tipc { display: none; position: absolute; z-index: 30; left: 0; top: 100%; margin-top: 6px; width: min(460px, 86vw); background: var(--gi-surface);
+  border: 1px solid var(--gi-line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.14); padding: 10px 12px; }
+.gi-tipw:hover .gi-tipc, .gi-tipw:focus .gi-tipc, .gi-tipw:focus-within .gi-tipc { display: block; }
+.gi-hitos { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; line-height: 1.35; color: var(--gi-ink-mid); }
+.gi-hitos .gi-ttl { font-weight: 650; color: var(--gi-ink); margin-bottom: 2px; }
+.gi-hl { display: flex; gap: 7px; align-items: baseline; }
+.gi-hl b { flex: none; display: inline-grid; place-items: center; width: 17px; height: 17px; border-radius: 50%; border: 1.6px solid; font-size: 9.5px; }
+/* tooltip único */
+#gi-tip { position: fixed; z-index: 1000; pointer-events: none; max-width: 320px; background: var(--gi-surface); color: var(--gi-ink);
+  border: 1px solid var(--gi-line); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.16); padding: 7px 10px; font: 12px/1.4 Inter, 'Segoe UI', Helvetica, Arial, sans-serif; }
+#gi-tip .gi-hA { font-weight: 650; margin-bottom: 3px; }
+#gi-tip .gi-hF { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+#gi-tip .gi-hF i { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+#gi-tip .gi-hS { padding-left: 15px; color: var(--gi-ink-lo); font-size: 11px; white-space: nowrap; }
+/* lupa */
+#gi-lupa { position: fixed; inset: 0; z-index: 900; background: rgba(0,0,0,.55); display: grid; place-items: center; padding: 16px; }
+#gi-lupa[hidden] { display: none; }
+.gi-lcaja { background: var(--gi-surface); color: var(--gi-ink); border-radius: 12px; width: min(1180px, 100%); max-height: 100%; overflow: auto; padding: 14px 18px 16px;
+  font-family: Inter, 'Segoe UI', Helvetica, Arial, sans-serif; }
+.gi-lcab { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.gi-lbtns { display: flex; gap: 6px; flex-wrap: wrap; }
+.gi-btn { font: inherit; font-size: 12px; background: none; color: var(--gi-ink); border: 1px solid var(--gi-line); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+.gi-btn:hover { border-color: var(--gi-ink-lo); }
+#gi-lcuerpo .gi-hitos { margin-top: 10px; border-top: 1px solid var(--gi-line); padding-top: 8px; }
+@media (max-width: 600px) { .gi-card { padding: 12px 10px 10px; } .gi-ley { gap: 5px 10px; font-size: 11.5px; } }
+
+</style>
+<script>
+/* grafico-interactivo · motor de gráficos interactivos en SVG puro (sin librerías, sin CDN).
+ *
+ * Extraído y generalizado del tablero de proyecciones AVN–TSC (construye_tablero.py, Américo Vespucio, 2026-09/10):
+ * `ejes`/`marco`/`linea`, `hitosSvg`/`hitosLey`, la lupa (`lupaAbre`, `bajaPNG`, `bajaSVG`), la ventana de valores
+ * (`hoverActiva`, T145), el gráfico de componentes apilados (`cmpOrigen`, T51/T74/T80) y `txtSobre`.
+ *
+ * Uso:  GI.dibuja(contenedor, spec)   ·   GI.repinta()   ·   GI.abreLupa(id)
+ * Tipos de spec: "lineas", "barras_apiladas", "dispersion" (nube de puntos), "vistas" (pestañas que cambian el gráfico). Contrato en SKILL.md.
+ */
+(function (global) {
+  'use strict';
+  const NS = 'http://www.w3.org/2000/svg';
+  const raiz = document.documentElement;
+  const REG = {};                    // id -> {cont, spec, est}
+  let idAuto = 0;
+
+  /* ------------------------------------------------------------------ utilidades */
+  const tok = n => getComputedStyle(raiz).getPropertyValue(n).trim();
+  const col = c => (c && c.startsWith('--')) ? (tok(c) || '#888') : (c || tok('--gi-ink'));
+  /* Formato chileno en todo texto visible: coma decimal, punto de miles, menos tipográfico y nunca «−0,0». Las coordenadas
+     SVG siguen con toFixed, que ahí el punto es obligatorio. */
+  function nd(v, n) {
+    if (v == null || !isFinite(v)) return '—';
+    n = n == null ? 1 : n;
+    const r = Number(v).toLocaleString('es-CL', { minimumFractionDigits: n, maximumFractionDigits: n });
+    return /^-0(,0+)?$/.test(r) ? r.slice(1) : r.replace('-', '−');
+  }
+  /* eje mensual (x.mensual): x = año + (mes − 1)/12; en el eje sólo los años, en la ventana de valores «jun-2026» (v1.2.0) */
+  const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+  const xMes = v => { const a = Math.floor(v + 1e-6), m = Math.round((v - a) * 12); return MESES[Math.min(11, Math.max(0, m))] + '-' + a; };
+  const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+  /* texto legible sobre un relleno, según la luminancia del color (vale en los dos temas) */
+  function txtSobre(c) {
+    let r, g, b; const m = String(c).trim().match(/^#([0-9a-f]{6})$/i), n = String(c).match(/rgba?\(([^)]+)\)/i);
+    if (m) { r = parseInt(m[1].slice(0, 2), 16); g = parseInt(m[1].slice(2, 4), 16); b = parseInt(m[1].slice(4, 6), 16); }
+    else if (n) { [r, g, b] = n[1].split(',').map(x => parseFloat(x)); }
+    else return '#1A1A1A';
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.6 ? '#1A1A1A' : '#FFFFFF';
+  }
+  /* Ancho de dibujo. Si la medición da cero —sección oculta, panel sin pintar— se usa el ancho de diseño: un viewBox de ancho
+     cero produce un gráfico que existe en el DOM, no da error y no se ve (ya costó una vez en el tablero de Vespucio). */
+  function anchoDe(cont, spec, forzado) {
+    const dis = spec.ancho || 900;                     // ancho de diseño: el de la lupa y el de respaldo
+    if (forzado) return dis;
+    const cw = cont.clientWidth;
+    if (!(cw > 0)) return dis;
+    return Math.round(Math.max(spec.ancho_min || 360, Math.min(dis, cw)));
+  }
+  const atrJSON = o => "'" + JSON.stringify(o).replace(/&/g, '&amp;').replace(/'/g, '&#39;') + "'";
+
+  /* ------------------------------------------------------------------ tooltip único */
+  function tip() {
+    let t = document.getElementById('gi-tip');
+    if (!t) { t = document.createElement('div'); t.id = 'gi-tip'; t.hidden = true; t.setAttribute('role', 'tooltip');
+      document.body.appendChild(t); }
+    return t;
+  }
+  function ponTip(html, ev) {
+    const t = tip(); t.innerHTML = html; t.hidden = false;
+    const w = t.offsetWidth, h = t.offsetHeight;
+    let x = ev.clientX + 16, y = ev.clientY + 16;
+    if (x + w > window.innerWidth - 8) x = ev.clientX - w - 16;
+    if (y + h > window.innerHeight - 8) y = ev.clientY - h - 16;
+    t.style.left = Math.max(4, x) + 'px'; t.style.top = Math.max(4, y) + 'px';
+  }
+  const quitaTip = () => { const t = document.getElementById('gi-tip'); if (t) t.hidden = true; };
+  /* Cualquier elemento con data-tip muestra su texto al pasar el mouse (segmentos de barra, hitos, marcadores). Reemplaza al
+     <title> nativo, que tarda en aparecer y no se puede formatear. */
+  document.addEventListener('pointerover', ev => {
+    const el = ev.target.closest && ev.target.closest('[data-tip]');
+    if (el) ponTip(el.getAttribute('data-tip'), ev);
+  });
+  document.addEventListener('pointermove', ev => {
+    const el = ev.target.closest && ev.target.closest('[data-tip]');
+    if (el) ponTip(el.getAttribute('data-tip'), ev);
+  });
+  document.addEventListener('pointerout', ev => {
+    const el = ev.target.closest && ev.target.closest('[data-tip]');
+    if (el && !(ev.relatedTarget && el.contains(ev.relatedTarget))) quitaTip();
+  });
+
+  /* ------------------------------------------------------------------ ejes y escalas */
+  function ejes(w, h, m) { m = Object.assign({ izq: 42, der: 10, sup: 30, inf: 20 }, m || {});
+    return { w, h, ml: m.izq, mr: m.der, mt: m.sup, mb: m.inf, iw: w - m.izq - m.der, ih: h - m.sup - m.inf }; }
+  function rangoY(spec, vals) {
+    const y = spec.y || {};
+    if (y.min != null && y.max != null) return [y.min, y.max];
+    const lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+    const pa = y.paso || (hi - lo > 0 ? Math.pow(10, Math.floor(Math.log10(hi - lo))) : 1), hol = y.holgura || 0;
+    const max = y.max != null ? y.max : Math.ceil((hi + (y.holgura_sup || 0)) / pa) * pa;
+    let min = y.min != null ? y.min : (y.desde_cero ? 0 : Math.floor((lo - hol) / pa) * pa);
+    if (!y.permite_negativo && lo >= 0) min = Math.max(0, min);
+    return [min, max];
+  }
+  function ticksY(spec, fy) {
+    const y = spec.y || {};
+    if (Array.isArray(y.ticks)) return y.ticks;
+    const n = y.ticks || 3; const out = [];
+    for (let i = 0; i < n; i++) out.push(fy[0] + (fy[1] - fy[0]) * i / (n - 1));
+    return out.map(v => Math.round(v * 1e6) / 1e6);
+  }
+  function marco(g, xs, ys, X, Y, fmtY, fmtX) {
+    const c = tok('--gi-line'), m = tok('--gi-ink-lo'); let o = '';
+    ys.forEach(v => { const y = Y(v);
+      o += `<line x1="${g.ml}" y1="${y.toFixed(1)}" x2="${g.ml + g.iw}" y2="${y.toFixed(1)}" stroke="${c}" stroke-width="1"/>`
+        + `<text x="${g.ml - 6}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="10" fill="${m}">${fmtY(v)}</text>`; });
+    xs.forEach(v => { const x = X(v), anc = x > g.w - 16 ? 'end' : (x < g.ml + 4 ? 'start' : 'middle');
+      o += `<text x="${(anc === 'end' ? g.w - 2 : x).toFixed(1)}" y="${g.h - 4}" text-anchor="${anc}" font-size="10" fill="${m}">${fmtX(v)}</text>`; });
+    return o;
+  }
+  const polil = (pts, X, Y, c, gr, dash) => {
+    const p = pts.filter(d => d[1] != null).map(d => X(d[0]).toFixed(1) + ',' + Y(d[1]).toFixed(1)).join(' ');
+    return `<polyline points="${p}" fill="none" stroke="${c}" stroke-width="${gr || 2}" stroke-linejoin="round" stroke-linecap="round"`
+      + (dash ? ` stroke-dasharray="${dash}"` : '') + '/>';
+  };
+
+  /* ------------------------------------------------------------------ hitos */
+  /* Marcadores numerados sobre el gráfico: línea vertical punteada (o franja si el hito tiene fin), círculo numerado en la franja
+     reservada sobre el área de datos, separado ≥ 14 px del anterior con una línea guía si hubo que correrlo. Color por categoría.
+     `anual`: los puntos de una serie anual representan el año entero y van a mitad de año; un hito con fecha exacta se dibuja
+     donde está el punto del año (fecha − 0,5), para que una baja de mayo de 2028 no aparezca antes del hito (T28, Vespucio). */
+  function hitosSvg(H, X, g, a0, a1, anual) {
+    if (!H || !H.lista || !H.lista.length) return { fondo: '', frente: '', ley: '', L: [] };
+    const xf = anual ? (a => X(a - 0.5)) : X, cat = H.categorias || {};
+    const L = H.lista.filter(h => (h.fin != null ? h.fin : h.ini) >= a0 && h.ini <= a1)
+      .slice().sort((p, q) => Math.max(p.ini, a0) - Math.max(q.ini, a0));
+    let fondo = '', frente = '', ult = -1e9; const yTop = g.mt, yBot = g.mt + g.ih, ym = yTop - 12;
+    L.forEach((h, i) => { h.n = i + 1;
+      const c = col((cat[h.categoria] || {}).color || '--gi-accent'), xi = xf(Math.max(h.ini, a0));
+      const t = `<b>${h.n}. ${esc(h.nombre)}</b><br>${esc(h.fecha || '')}` + ((cat[h.categoria] || {}).texto ? ` · ${esc(cat[h.categoria].texto)}` : '')
+        + (h.fuente ? `<br><span class="gi-mut">Fuente: ${esc(h.fuente)}</span>` : '');
+      if (h.fin != null) { const xF = xf(Math.min(h.fin, a1));
+        fondo += `<rect x="${xi.toFixed(1)}" y="${yTop}" width="${Math.max(1, xF - xi).toFixed(1)}" height="${(yBot - yTop).toFixed(1)}" fill="${c}" opacity=".08"/>`;
+        frente += `<path d="M${xi.toFixed(1)},${ym + 4} V${ym} H${xF.toFixed(1)} V${ym + 4}" fill="none" stroke="${c}" stroke-width="1.4"/>`;
+      } else {
+        frente += `<line x1="${xi.toFixed(1)}" y1="${yTop}" x2="${xi.toFixed(1)}" y2="${yBot.toFixed(1)}" stroke="${c}" stroke-width="1.2" stroke-dasharray="3 3" opacity=".85"/>`;
+      }
+      let xc = xi; if (xc - ult < 14) xc = ult + 14; ult = xc;
+      if (Math.abs(xc - xi) > .5) frente += `<line x1="${xi.toFixed(1)}" y1="${yTop}" x2="${xc.toFixed(1)}" y2="${ym + 6}" stroke="${c}" stroke-width="1"/>`;
+      frente += `<g class="gi-hito" data-tip="${esc(t)}"><circle cx="${xc.toFixed(1)}" cy="${ym}" r="6.6" fill="${tok('--gi-surface')}" stroke="${c}" stroke-width="1.8"/>`
+        + `<text x="${xc.toFixed(1)}" y="${ym + 3.2}" text-anchor="middle" font-size="8.5" font-weight="700" fill="${c}">${h.n}</text></g>`;
+    });
+    const tipos = [...new Set(L.map(h => h.categoria))];
+    const ley = '<div class="gi-hitos"><span class="gi-ttl">' + esc(H.titulo || 'Hitos') + '</span>'
+      + L.map(h => { const c = col((cat[h.categoria] || {}).color || '--gi-accent');
+        return `<span class="gi-hl"><b style="border-color:${c};color:${c}">${h.n}</b><span>${esc(h.nombre)}${h.fecha ? ' · ' + esc(h.fecha) : ''}</span></span>`; }).join('')
+      + (tipos.length && tipos.some(t => cat[t]) ? '<span class="gi-mut">Color: ' + tipos.filter(t => cat[t]).map(t => `<b style="color:${col(cat[t].color)}">${esc(cat[t].texto || t)}</b>`).join(' · ') + '.</span>' : '')
+      + '</div>';
+    return { fondo, frente, ley, L };
+  }
+
+  /* ------------------------------------------------------------------ gráfico de líneas */
+  function lineas(cont, spec, est, opt) {
+    opt = opt || {};
+    const w = anchoDe(cont, spec, opt.diseno), g = ejes(w, spec.alto || 268, spec.margen);
+    const fx = [spec.x.min, spec.x.max], dec = spec.dec == null ? 1 : spec.dec, uni = spec.unidad ? ' ' + spec.unidad : '';
+    const vis = s => est.vis[s.id] !== false;
+    const S = spec.series.filter(vis), B = (spec.bandas || []).filter(b => est.vis[b.id] !== false);
+    const vals = [].concat(...S.map(s => s.puntos.map(p => p[1]).filter(v => v != null)),
+      ...B.map(b => Object.values(b.bajo).concat(Object.values(b.alto))));
+    const fy = rangoY(spec, vals.length ? vals : [0, 1]);
+    const X = a => g.ml + (a - fx[0]) / (fx[1] - fx[0]) * g.iw, Y = v => g.mt + g.ih - (v - fy[0]) / (fy[1] - fy[0]) * g.ih;
+    const fmtY = v => nd(v, (spec.y || {}).dec != null ? spec.y.dec : 0), fmtX = spec.x.mensual ? (v => Math.abs(v - Math.round(v)) < 1e-6 ? String(Math.round(v)) : xMes(v)) : spec.x.formato === 'nd' ? (v => nd(v, 0)) : (v => String(v));
+    const xs0 = spec.x.ticks || (() => { const o = [], p = spec.x.paso || Math.ceil((fx[1] - fx[0]) / 5); for (let a = fx[0]; a <= fx[1]; a += p) o.push(a); return o; })();
+    /* en un teléfono las etiquetas del eje x no caben: se ralean (una de cada k) hasta dejar ≥ 34 px entre ellas */
+    let kx = 1; while (xs0.length / kx * 34 > g.iw && kx < xs0.length) kx++;
+    const xs = xs0.filter((_, i) => i % kx === 0);
+    const HS = hitosSvg(spec.hitos, X, g, fx[0] + (spec.x.anual ? .5 : 0), fx[1] + (spec.x.anual ? .5 : 0), spec.x.anual);
+    let s = '';
+    (spec.periodos || []).forEach(p => {
+      const c = col(p.color || '--gi-ink-lo');
+      s += `<rect x="${X(p.desde).toFixed(1)}" y="${g.mt}" width="${(X(p.hasta) - X(p.desde)).toFixed(1)}" height="${g.ih}" fill="${c}" opacity="${p.opacidad ?? .08}"/>`;
+      if (p.texto) s += `<text x="${((X(p.desde) + X(p.hasta)) / 2).toFixed(1)}" y="${g.mt + 13}" text-anchor="middle" font-size="9" fill="${tok('--gi-ink-lo')}" letter-spacing=".05em">${esc(p.texto)}</text>`;
+    });
+    s += HS.fondo + marco(g, xs, ticksY(spec, fy), X, Y, fmtY, fmtX);
+    B.forEach(b => {
+      const aa = Object.keys(b.bajo).map(Number).sort((p, q) => p - q), c = col(b.color);
+      const pts = aa.map(a => X(a).toFixed(1) + ',' + Y(b.alto[a]).toFixed(1)).join(' ') + ' '
+        + aa.slice().reverse().map(a => X(a).toFixed(1) + ',' + Y(b.bajo[a]).toFixed(1)).join(' ');
+      const u = aa[aa.length - 1];
+      s += `<polygon points="${pts}" fill="${c}" fill-opacity="${b.opacidad ?? .22}" stroke="${c}" stroke-opacity=".6" stroke-width=".8"`
+        + ` data-tip="${esc('<b>' + b.nombre + '</b><br>' + u + ': ' + nd(b.bajo[u], dec) + ' – ' + nd(b.alto[u], dec) + uni)}"/>`;
+    });
+    S.forEach(se => { s += polil(se.puntos, X, Y, col(se.color), se.grosor || 2, se.trazo); });
+    s += HS.frente;
+    /* lo que lee la ventana de valores: las mismas series y bandas que se dibujan, ya en las unidades del eje */
+    const hov = { x0: fx[0], x1: fx[1], y0: fy[0], y1: fy[1], ml: g.ml, iw: g.iw, mt: g.mt, ih: g.ih, dec, uni, ex: spec.x.etiqueta || '', xm: !!spec.x.mensual,
+      series: S.map(se => ({ t: se.nombre, col: col(se.color), pts: se.puntos.filter(p => p[1] != null),
+        bandas: B.filter(b => b.serie === se.id).map(b => ({ t: b.nombre, lo: b.bajo, hi: b.alto })) })) };
+    const svg = `<svg class="gi-svg" viewBox="0 0 ${g.w} ${g.h}" role="img" aria-label="${esc(spec.titulo || '')}" data-gi="${esc(spec.id)}" data-hover=${atrJSON(hov)}>${s}</svg>`;
+    /* leyenda: chips fijos y botones que encienden y apagan cada serie conmutable; los hitos, desplegables */
+    const sw = (c, dash, gr) => `<svg width="22" height="8" aria-hidden="true"><line x1="1" y1="4" x2="21" y2="4" stroke="${c}" stroke-width="${Math.min(3, gr || 2.4)}"${dash ? ` stroke-dasharray="${dash}"` : ''}/></svg>`;
+    let ley = spec.series.map(se => {
+      const on = vis(se), c = col(se.color);
+      if (!se.conmutable) return `<span class="gi-chip">${sw(c, se.trazo, se.grosor)}${esc(se.nombre)}</span>`;
+      return `<button type="button" class="gi-leyb${on ? '' : ' off'}" data-gi-serie="${esc(se.id)}" aria-pressed="${on}" title="${esc((se.descripcion || se.nombre) + ': clic para ' + (on ? 'ocultarla' : 'mostrarla'))}">${sw(c, se.trazo, se.grosor)}${esc(se.nombre)}</button>`;
+    }).join('') + (spec.bandas || []).map(b => {
+      const on = est.vis[b.id] !== false, c = col(b.color), lab = esc(b.nombre_leyenda || b.nombre);
+      const box = `<i style="background:${c};opacity:${Math.min(.5, (b.opacidad ?? .22) + .1)}"></i>`;
+      return b.conmutable ? `<button type="button" class="gi-leyb${on ? '' : ' off'}" data-gi-serie="${esc(b.id)}" aria-pressed="${on}">${box}${lab}</button>`
+        : `<span class="gi-chip gi-box">${box}${lab}</span>`;
+    }).join('');
+    if (HS.L.length) ley += `<span class="gi-tipw" tabindex="0">${esc((spec.hitos.boton) || 'Hitos del gráfico')} <span class="gi-tipi">?</span><span class="gi-tipc">${HS.ley}</span></span>`;
+    const nota = spec.nota ? `<div class="gi-nota">${spec.nota}</div>` : '';
+    return { svg, ley, nota, hitosLey: HS.ley };
+  }
+
+  /* ------------------------------------------------------------------ barras apiladas */
+  function barras(cont, spec, est, opt) {
+    opt = opt || {};
+    const w = anchoDe(cont, spec, opt.diseno), g = ejes(w, spec.alto || 290, Object.assign({ izq: 40, der: 12, sup: 20, inf: 34 }, spec.margen || {}));
+    const cats = spec.categorias, comp = spec.componentes.filter(c => est.vis[c.id] !== false), dec = spec.dec == null ? 1 : spec.dec;
+    const uni = spec.unidad ? ' ' + spec.unidad : '';
+    const tot = c => spec.total && spec.total[c.id] != null ? spec.total[c.id] : spec.componentes.reduce((a, k) => a + (spec.valores[c.id][k.id] || 0), 0);
+    let fy = [spec.y.min, spec.y.max];
+    const Y = v => g.mt + (fy[1] - v) / (fy[1] - fy[0]) * g.ih;
+    const nSep = cats.filter(c => c.separada).length, paso = (g.iw - 30 - nSep * 14) / cats.length;
+    let sep = 0; const XC = cats.map(c => { if (c.separada) sep += 14; return g.ml + 15 + sep + paso * (cats.indexOf(c) + .5); });
+    const bw = Math.min(spec.ancho_barra || 48, paso * .62), um = spec.umbral_etiqueta == null ? 1 : spec.umbral_etiqueta;
+    let s = '';
+    (spec.y.ticks || []).forEach(v => { s += `<line x1="${g.ml}" x2="${g.ml + g.iw}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="${tok(v === 0 ? '--gi-ink-lo' : '--gi-line')}" stroke-width="${v === 0 ? 1 : .6}"/>`
+      + `<text x="${g.ml - 6}" y="${(Y(v) + 3).toFixed(1)}" text-anchor="end" font-size="10" fill="${tok('--gi-ink-lo')}">${nd(v, (spec.y.dec || 0))}</text>`; });
+    cats.forEach((c, i) => {
+      const r = spec.valores[c.id] || {}, T = tot(c); let pos = 0, neg = 0;
+      comp.forEach(k => { const h = r[k.id] || 0, b = h >= 0 ? pos : neg, y0 = Y(b + Math.max(h, 0)), y1 = Y(b + Math.min(h, 0)), cc = col(k.color);
+        const pp = Math.abs(T) >= um && Math.abs(h) >= um ? Math.round(h / T * 100) : null;   // participación en la columna
+        const txt = spec.etiquetas === 'valor' ? (Math.abs(h) >= um ? nd(h, dec) : null) : (pp === null ? null : (pp < 0 ? '−' + (-pp) : pp) + ' %');
+        s += `<rect x="${(XC[i] - bw / 2).toFixed(1)}" y="${y0.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0, y1 - y0).toFixed(1)}" fill="${cc}"`
+          + ` data-tip="${esc('<b>' + c.etiqueta + '</b> · ' + k.nombre + '<br>' + nd(h, dec) + uni + (pp === null ? '' : ' · ' + pp + ' % del total de la columna'))}"/>`;
+        if (spec.etiquetas !== null && txt && (y1 - y0) >= 11) s += `<text x="${(XC[i] - bw / 2 + 3).toFixed(1)}" y="${((y0 + y1) / 2 + 3.5).toFixed(1)}" font-size="9" font-weight="700" fill="${txtSobre(cc)}" pointer-events="none">${txt}</text>`;
+        if (h >= 0) pos += h; else neg += h; });
+      if (spec.total_marcador !== false) { const yt = Y(T);
+        s += `<path d="M${XC[i].toFixed(1)} ${(yt - 5).toFixed(1)} l5 5 l-5 5 l-5 -5 z" fill="${tok('--gi-ink')}" data-tip="${esc('<b>' + c.etiqueta + '</b> · ' + ((spec.total_marcador || {}).nombre || 'Total') + ': ' + nd(T, dec) + uni)}"/>`
+          + `<text x="${XC[i].toFixed(1)}" y="${(Y(Math.max(pos, T)) - 7).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="700" fill="${tok('--gi-ink')}">${nd(Math.abs(T) < Math.pow(10, -dec) / 2 ? 0 : T, dec)}</text>`; }
+      (spec.marcadores || []).forEach(mk => { const v = mk.valores[c.id]; if (v == null) return;
+        const cc = col(mk.color), dsc = (mk.descripcion_por_categoria || {})[c.id] || mk.nombre;
+        s += `<circle cx="${XC[i].toFixed(1)}" cy="${Y(v).toFixed(1)}" r="4.5" fill="${tok('--gi-surface')}" stroke="${cc}" stroke-width="2" data-tip="${esc('<b>' + c.etiqueta + '</b> · ' + dsc + ': ' + nd(v, dec) + uni)}"/>`; });
+      s += `<text x="${XC[i].toFixed(1)}" y="${g.h - 12}" text-anchor="middle" font-size="11" fill="${tok('--gi-ink-mid')}">${esc(c.etiqueta)}</text>`;
+    });
+    const svg = `<svg class="gi-svg" viewBox="0 0 ${g.w} ${g.h}" role="img" aria-label="${esc(spec.titulo || '')}" data-gi="${esc(spec.id)}">${s}</svg>`;
+    let ley = spec.componentes.map(k => { const c = col(k.color), on = est.vis[k.id] !== false;
+      return spec.componentes_conmutables ? `<button type="button" class="gi-leyb${on ? '' : ' off'}" data-gi-serie="${esc(k.id)}" aria-pressed="${on}"><i style="background:${c}"></i>${esc(k.nombre)}</button>`
+        : `<span class="gi-chip gi-box"><i style="background:${c}"></i>${esc(k.nombre)}</span>`; }).join('');
+    if (spec.total_marcador !== false) ley += `<span class="gi-chip gi-box"><i class="gi-rombo" style="background:${tok('--gi-ink')}"></i>${esc((spec.total_marcador || {}).nombre || 'Total')}</span>`;
+    (spec.marcadores || []).forEach(mk => { ley += `<span class="gi-chip gi-box"><i class="gi-circ" style="border-color:${col(mk.color)}"></i>${esc(mk.nombre)}</span>`; });
+    return { svg, ley, nota: spec.nota ? `<div class="gi-nota">${spec.nota}</div>` : '' };
+  }
+
+  /* ------------------------------------------------------------------ gráfico de dispersión (scatter) */
+  /* Nube de puntos (x, y), con color por serie/categoría, recta identidad opcional (x=y) y ejes cuadrados opcionales
+     para comparar dos magnitudes de la misma unidad (p. ej. dos matrices OD por par). Cada punto lleva su data-tip, así
+     que el detalle al pasar el mouse, la lupa y la descarga PNG/SVG los aporta la misma maquinaria de los otros tipos;
+     la leyenda enciende y apaga cada serie. Generaliza el scatter hecho a mano en el comparador de matrices de Acceso
+     Norte (2026-10-14). Para una nube muy densa, el hover es por punto (hay que apuntar al círculo). */
+  function dispersion(cont, spec, est, opt) {
+    opt = opt || {};
+    const w = anchoDe(cont, spec, opt.diseno), g = ejes(w, spec.alto || 300, Object.assign({ izq: 50, der: 12, sup: 18, inf: 38 }, spec.margen || {}));
+    const dec = spec.dec == null ? 1 : spec.dec, uni = spec.unidad ? ' ' + spec.unidad : '';
+    const xx = spec.x || {}, yy = spec.y || {};
+    const vis = s => est.vis[s.id] !== false;
+    const S = (spec.series || []).filter(vis), visIds = new Set(S.map(s => s.id));
+    const P = (spec.puntos || []).filter(p => p.s == null || visIds.has(p.s));
+    const xs = P.map(p => p.x), ys = P.map(p => p.y);
+    let fx, fy;
+    if (spec.cuadrado) {                                   // misma escala en ambos ejes: la identidad queda a 45°
+      const mn = Math.min(0, ...xs, ...ys), mx = Math.max(1, ...xs, ...ys);
+      fx = [xx.min != null ? xx.min : mn, xx.max != null ? xx.max : mx]; fy = [yy.min != null ? yy.min : mn, yy.max != null ? yy.max : mx];
+    } else {
+      fx = [xx.min != null ? xx.min : Math.min(0, ...xs), xx.max != null ? xx.max : Math.max(1, ...xs)];
+      fy = rangoY(spec, ys.length ? ys : [0, 1]);
+    }
+    const X = v => g.ml + (v - fx[0]) / (fx[1] - fx[0]) * g.iw, Y = v => g.mt + g.ih - (v - fy[0]) / (fy[1] - fy[0]) * g.ih;
+    const fmtY = v => nd(v, yy.dec != null ? yy.dec : 0), fmtX = v => nd(v, xx.dec != null ? xx.dec : 0);
+    const tX = xx.ticks || (() => { const o = [], n = 4; for (let i = 0; i <= n; i++) o.push(fx[0] + (fx[1] - fx[0]) * i / n); return o; })();
+    let s = marco(g, tX, ticksY(spec, fy), X, Y, fmtY, fmtX);
+    if (spec.identidad) { const a = Math.max(fx[0], fy[0]), b = Math.min(fx[1], fy[1]);
+      s += `<line x1="${X(a).toFixed(1)}" y1="${Y(a).toFixed(1)}" x2="${X(b).toFixed(1)}" y2="${Y(b).toFixed(1)}" stroke="${tok('--gi-ink-lo')}" stroke-width="1.4"/>`; }
+    const colS = {}; (spec.series || []).forEach(se => colS[se.id] = col(se.color));
+    const rad = spec.radio || 3.2, op = spec.opacidad ?? .8, exl = esc(xx.etiqueta || 'x'), eyl = esc(yy.etiqueta || 'y');
+    P.forEach(p => { const cc = p.s != null ? (colS[p.s] || '#9aa') : col(spec.color || '--gi-s1');
+      const tip = (p.nombre ? '<b>' + esc(p.nombre) + '</b>' : '') + (p.s != null ? (p.nombre ? '<br>' : '') + esc(p.s) : '')
+        + '<br>' + exl + ': ' + nd(p.x, dec) + uni + '<br>' + eyl + ': ' + nd(p.y, dec) + uni
+        + (spec.identidad ? '<br>Δ ' + nd(p.y - p.x, dec) + uni : '');
+      s += `<circle cx="${X(p.x).toFixed(1)}" cy="${Y(p.y).toFixed(1)}" r="${rad}" fill="${cc}" fill-opacity="${op}" data-tip="${esc(tip)}"/>`; });
+    s += `<text x="${(g.ml + g.iw / 2).toFixed(1)}" y="${g.h - 2}" text-anchor="middle" font-size="10.5" fill="${tok('--gi-ink-mid')}">${exl}</text>`;
+    s += `<text transform="translate(12 ${(g.mt + g.ih / 2).toFixed(1)}) rotate(-90)" text-anchor="middle" font-size="10.5" fill="${tok('--gi-ink-mid')}">${eyl}</text>`;
+    const svg = `<svg class="gi-svg" viewBox="0 0 ${g.w} ${g.h}" role="img" aria-label="${esc(spec.titulo || '')}" data-gi="${esc(spec.id)}">${s}</svg>`;
+    const dot = c => `<i style="background:${c}"></i>`;
+    const ley = (spec.series || []).map(se => { const c = col(se.color), on = vis(se);
+      return se.conmutable ? `<button type="button" class="gi-leyb${on ? '' : ' off'}" data-gi-serie="${esc(se.id)}" aria-pressed="${on}" title="${esc(se.nombre + ': clic para ' + (on ? 'ocultarla' : 'mostrarla'))}">${dot(c)}${esc(se.nombre)}</button>`
+        : `<span class="gi-chip gi-box">${dot(c)}${esc(se.nombre)}</span>`; }).join('');
+    return { svg, ley, nota: spec.nota ? `<div class="gi-nota">${spec.nota}</div>` : '' };
+  }
+
+  /* ------------------------------------------------------------------ ventana de valores (hover) */
+  /* modo 'todas': en el x más cercano al puntero muestra TODAS las series visibles con valor en ese x, de mayor a menor, y los
+     extremos de sus bandas (pedido de Rodrigo, 2026-10-14: «el detalle en el gráfico normal»).
+     modo 'cercanas': el comportamiento original de la lupa de Vespucio (T145): sólo las series a ≤ 8 px del puntero o cuya banda
+     lo contiene. Los datos viajan en data-hover con los valores que dibujan las líneas; no se recalculan. */
+  function activaHover(svg, modo) {
+    if (svg.__giHover) return; svg.__giHover = true;
+    let D; try { D = JSON.parse(svg.getAttribute('data-hover')); } catch (e) { return; }
+    const gO = document.createElementNS(NS, 'g'); gO.setAttribute('class', 'gi-hovO'); gO.setAttribute('pointer-events', 'none'); svg.appendChild(gO);
+    const X = a => D.ml + (a - D.x0) / (D.x1 - D.x0) * D.iw, Y = v => D.mt + D.ih - (v - D.y0) / (D.y1 - D.y0) * D.ih;
+    const xsU = [...new Set([].concat(...D.series.map(s => s.pts.map(p => p[0]))))].sort((p, q) => p - q);
+    const val = (pts, a) => { for (const p of pts) if (p[0] === a) return p[1]; return null; };
+    const enX = (pts, x) => { for (let i = 1; i < pts.length; i++) { const xa = X(pts[i - 1][0]), xb = X(pts[i][0]);
+      if (x >= xa && x <= xb) { const t = xb > xa ? (x - xa) / (xb - xa) : 0; return Y(pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * t); } } return null; };
+    const circ = (x, y, c, lleno) => `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${lleno ? 3.8 : 3.2}" fill="${lleno ? c : tok('--gi-surface')}" stroke="${lleno ? tok('--gi-surface') : c}" stroke-width="${lleno ? 1.2 : 1.6}"/>`;
+    const esconde = () => { quitaTip(); gO.innerHTML = ''; };
+    svg.addEventListener('pointermove', ev => {
+      const m = svg.getScreenCTM(); if (!m) return;
+      const pt = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(m.inverse());
+      if (pt.x < D.ml - 4 || pt.x > D.ml + D.iw + 4 || pt.y < D.mt - 6 || pt.y > D.mt + D.ih + 6) { esconde(); return; }
+      let a = xsU[0], best = 1e9; xsU.forEach(x => { const d = Math.abs(X(x) - pt.x); if (d < best) { best = d; a = x; } });
+      const filas = [];
+      D.series.forEach(s => { const v = val(s.pts, a); if (v == null) return;
+        const bs = (s.bandas || []).map(b => ({ t: b.t, lo: b.lo[a], hi: b.hi[a] })).filter(b => b.lo != null && b.hi != null)
+          .map(b => ({ t: b.t, lo: Math.min(b.lo, b.hi), hi: Math.max(b.lo, b.hi) }));
+        if (modo === 'cercanas') { const yi = enX(s.pts, pt.x);
+          const cerca = (yi != null && Math.abs(pt.y - yi) <= 8) || Math.abs(pt.y - Y(v)) <= 8 || bs.some(b => pt.y <= Y(b.lo) + 2 && pt.y >= Y(b.hi) - 2);
+          if (!cerca) return; }
+        filas.push({ s, v, bs }); });
+      if (!filas.length) { esconde(); return; }
+      filas.sort((p, q) => q.v - p.v);
+      let o = `<line x1="${X(a).toFixed(1)}" x2="${X(a).toFixed(1)}" y1="${D.mt}" y2="${D.mt + D.ih}" stroke="${tok('--gi-ink-lo')}" stroke-width=".8" stroke-dasharray="3 3"/>`;
+      filas.forEach(r => { r.bs.forEach(b => { o += `<line x1="${X(a).toFixed(1)}" x2="${X(a).toFixed(1)}" y1="${Y(b.hi).toFixed(1)}" y2="${Y(b.lo).toFixed(1)}" stroke="${r.s.col}" stroke-width="1.4" stroke-opacity=".7"/>`
+        + circ(X(a), Y(b.lo), r.s.col, false) + circ(X(a), Y(b.hi), r.s.col, false); }); o += circ(X(a), Y(r.v), r.s.col, true); });
+      gO.innerHTML = o;
+      ponTip(`<div class="gi-hA">${esc(D.ex)}${D.ex ? ' ' : ''}${D.xm ? xMes(a) : a}</div>` + filas.map(r => `<div class="gi-hF"><i style="background:${r.s.col}"></i>${esc(r.s.t)}: <b>${nd(r.v, D.dec)}${esc(D.uni)}</b></div>`
+        + r.bs.map(b => `<div class="gi-hS">${esc(b.t)}: ${nd(b.lo, D.dec)} – ${nd(b.hi, D.dec)}${esc(D.uni)}</div>`).join('')).join(''), ev);
+    });
+    svg.addEventListener('pointerleave', esconde);
+  }
+
+  /* ------------------------------------------------------------------ pintar y registrar */
+  function pinta(id, opt) {
+    const R = REG[id]; if (!R) return; const { cont, spec, est } = R;
+    let sp = spec, tabs = '';
+    if (spec.tipo === 'vistas') {
+      const v = spec.vistas.find(x => x.id === est.vista) || spec.vistas[0]; sp = v.grafico;
+      tabs = `<div class="gi-seg" role="tablist">` + spec.vistas.map(x => `<button type="button" role="tab" class="${x.id === v.id ? 'on' : ''}" aria-selected="${x.id === v.id}" data-gi-vista="${esc(x.id)}">${esc(x.etiqueta)}</button>`).join('') + '</div>';
+      est.estSub[v.id] = est.estSub[v.id] || { vis: iniVis(sp) };
+    }
+    const e2 = spec.tipo === 'vistas' ? est.estSub[est.vista || spec.vistas[0].id] : est;
+    /* se mide siempre el cuerpo de la tarjeta (no el contenedor), para que el ancho no cambie entre el primer dibujo y los
+       siguientes: si no existe todavía, se monta la tarjeta vacía antes de medir */
+    if (!(opt && opt.soloDevuelve) && !cont.querySelector('.gi-cuerpo')) cont.innerHTML = '<div class="gi-card"><div class="gi-cuerpo"></div></div>';
+    const cuerpo = cont.querySelector('.gi-cuerpo') || cont;
+    const r = (sp.tipo === 'barras_apiladas' ? barras : sp.tipo === 'dispersion' ? dispersion : lineas)(cuerpo, sp, e2, opt);
+    if (opt && opt.soloDevuelve) return r;
+    cont.innerHTML = `<div class="gi-card"><div class="gi-t">${esc(sp.titulo || '')}</div>${tabs}<div class="gi-cuerpo">${r.svg}</div>`
+      + `<div class="gi-ley">${r.ley}</div>${r.nota}</div>`;
+    const svg = cont.querySelector('svg.gi-svg');
+    if (svg.hasAttribute('data-hover')) activaHover(svg, ((sp.hover || {}).normal) || 'todas');
+    cont.querySelectorAll('[data-gi-serie]').forEach(b => b.onclick = ev => { ev.stopPropagation();
+      const k = b.getAttribute('data-gi-serie'); e2.vis[k] = e2.vis[k] === false; pinta(id); });
+    cont.querySelectorAll('[data-gi-vista]').forEach(b => b.onclick = ev => { ev.stopPropagation(); est.vista = b.getAttribute('data-gi-vista'); pinta(id); });
+  }
+  function iniVis(sp) { const v = {};
+    (sp.series || []).concat(sp.bandas || [], sp.componentes || []).forEach(s => { if (s.visible === false) v[s.id] = false; });
+    return v; }
+  function dibuja(cont, spec) {
+    if (typeof cont === 'string') cont = document.getElementById(cont);
+    if (!cont) throw new Error('grafico-interactivo: no existe el contenedor');
+    spec.id = spec.id || ('gi' + (++idAuto)); cont.classList.add('gi-host'); cont.setAttribute('data-gi-host', spec.id);
+    REG[spec.id] = { cont, spec, est: spec.tipo === 'vistas' ? { vista: spec.inicial || spec.vistas[0].id, estSub: {} } : { vis: iniVis(spec) } };
+    pinta(spec.id);
+    return REG[spec.id];
+  }
+  const repinta = () => Object.keys(REG).forEach(id => pinta(id));
+
+  /* ------------------------------------------------------------------ lupa: ampliar, ver valores y bajar */
+  let lupaSVG = null, lupaNom = 'grafico', lupaId = null;
+  function lupaDom() {
+    let L = document.getElementById('gi-lupa'); if (L) return L;
+    L = document.createElement('div'); L.id = 'gi-lupa'; L.hidden = true; L.setAttribute('role', 'dialog'); L.setAttribute('aria-modal', 'true');
+    L.innerHTML = '<div class="gi-lcaja"><div class="gi-lcab"><b id="gi-ltit"></b><span class="gi-lbtns">'
+      + '<button type="button" class="gi-btn" data-gi-acc="png">Descargar PNG</button><button type="button" class="gi-btn" data-gi-acc="svg">Descargar SVG</button>'
+      + '<button type="button" class="gi-btn" data-gi-acc="cerrar" aria-label="Cerrar">Cerrar ✕</button></span></div><div id="gi-lcuerpo"></div></div>';
+    L.addEventListener('click', ev => { const b = ev.target.closest('[data-gi-acc]');
+      if (b) { const a = b.getAttribute('data-gi-acc'); if (a === 'png') bajaPNG(); else if (a === 'svg') bajaSVG(); else cierraLupa(); }
+      else if (ev.target === L) cierraLupa(); });
+    document.body.appendChild(L); return L;
+  }
+  function abreLupa(id) {
+    const R = REG[id]; if (!R) return; lupaId = id;
+    const L = lupaDom(), cuerpo = L.querySelector('#gi-lcuerpo');
+    /* la lupa redibuja el gráfico a su ancho de diseño: en un teléfono el de la página puede venir angosto y sin rótulos */
+    const r = pinta(id, { diseno: true, soloDevuelve: true });
+    cuerpo.innerHTML = r.svg + `<div class="gi-ley gi-lley">${r.ley.replace(/<span class="gi-tipw"[\s\S]*$/, '')}</div>` + (r.hitosLey || '') + r.nota;
+    const svg = cuerpo.querySelector('svg');
+    const sp = R.spec.tipo === 'vistas' ? (R.spec.vistas.find(x => x.id === R.est.vista) || R.spec.vistas[0]).grafico : R.spec;
+    if (svg.hasAttribute('data-hover')) activaHover(svg, ((sp.hover || {}).lupa) || 'cercanas');
+    cuerpo.querySelectorAll('[data-gi-serie]').forEach(b => b.onclick = ev => { ev.stopPropagation(); R.cont.querySelector('[data-gi-serie="' + b.getAttribute('data-gi-serie') + '"]').click(); abreLupa(id); });
+    L.querySelector('#gi-ltit').textContent = sp.titulo || 'Gráfico';
+    L.hidden = false; document.body.style.overflow = 'hidden';
+    lupaSVG = svg; lupaNom = (sp.titulo || 'grafico').replace(/[^\wáéíóúñÁÉÍÓÚÑ -]/g, '').trim().replace(/\s+/g, '-').toLowerCase();
+  }
+  function cierraLupa() { const L = document.getElementById('gi-lupa'); if (L) L.hidden = true; document.body.style.overflow = ''; quitaTip(); lupaId = null; }
+  function svgTexto(svg) {
+    const c = svg.cloneNode(true); c.removeAttribute('data-hover'); c.querySelectorAll('.gi-hovO').forEach(n => n.remove());
+    c.setAttribute('xmlns', NS);
+    const vb = (c.getAttribute('viewBox') || '0 0 900 400').split(/\s+/).map(Number);
+    const r = document.createElementNS(NS, 'rect'); r.setAttribute('x', vb[0] - 6); r.setAttribute('y', vb[1] - 6);
+    r.setAttribute('width', vb[2] + 12); r.setAttribute('height', vb[3] + 12); r.setAttribute('fill', tok('--gi-surface'));
+    c.insertBefore(r, c.firstChild); c.setAttribute('font-family', "Inter, 'Segoe UI', Helvetica, Arial, sans-serif");
+    return new XMLSerializer().serializeToString(c);
+  }
+  function baja(blob, ext) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = lupaNom + '.' + ext; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
+  function bajaSVG() { if (lupaSVG) baja(new Blob([svgTexto(lupaSVG)], { type: 'image/svg+xml;charset=utf-8' }), 'svg'); }
+  function bajaPNG() { if (!lupaSVG) return;
+    const vb = (lupaSVG.getAttribute('viewBox') || '0 0 900 400').split(/\s+/).map(Number), K = 3;   // triple resolución, para imprimir
+    const cv = document.createElement('canvas'); cv.width = Math.round((vb[2] + 12) * K); cv.height = Math.round((vb[3] + 12) * K);
+    const cx = cv.getContext('2d'), img = new Image();
+    img.onload = () => { cx.fillStyle = tok('--gi-surface'); cx.fillRect(0, 0, cv.width, cv.height); cx.drawImage(img, 0, 0, cv.width, cv.height); cv.toBlob(b => baja(b, 'png')); };
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgTexto(lupaSVG))));
+  }
+  /* clic en cualquier gráfico registrado lo amplía; los botones de la leyenda y las pestañas no */
+  document.addEventListener('click', ev => {
+    const svg = ev.target.closest && ev.target.closest('svg.gi-svg');
+    if (!svg || svg.closest('#gi-lupa') || ev.target.closest('button')) return;
+    const host = svg.closest('[data-gi-host]'); if (host) abreLupa(host.getAttribute('data-gi-host'));
+  });
+  document.addEventListener('keydown', ev => { if (ev.key === 'Escape') cierraLupa(); });
+
+  /* ------------------------------------------------------------------ tema y tamaño */
+  let tRes = null;
+  window.addEventListener('resize', () => { clearTimeout(tRes); tRes = setTimeout(repinta, 180); });
+  if (window.matchMedia) window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', repinta);
+  new MutationObserver(repinta).observe(raiz, { attributes: true, attributeFilter: ['data-theme'] });
+
+  global.GI = { dibuja, repinta, abreLupa, cierraLupa, nd, txtSobre, version: '1.2.0' };
+})(window);
+
+</script>
+
+<style>
 :root{
   --paper:#FBFBFD;--surface:#FFFFFF;--surface-alt:#F4F6F9;--line:#E3E8EF;--line-2:#D6DEE9;
   --ink:#0E2338;--ink-mid:#4A5A70;--ink-lo:#667489;
-  --navy:#16365a;--accent:#1F6FEB;--focus:#1F6FEB;--or:#B24E0B;
+  --navy:#16365a;--accent:#1F6FEB;--focus:#1F6FEB;--or:#B24E0B;--on:#fff;
   --grad:linear-gradient(135deg,#0E2338 0%,#16365a 60%,#21507F 100%);
-  --r:14px;--r-sm:10px;
+  --r:14px;--r-sm:10px;--r-lg:18px;
   --sh:0 1px 3px rgba(14,35,56,.05),0 8px 24px rgba(14,35,56,.05);
   --font-display:'Source Serif 4',Georgia,serif;
   --font-ui:'Inter',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   --font-data:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
-  --seq-1:#C6D9F0;--seq-2:#8CB3DE;--seq-3:#4A80C0;--seq-4:#2A5C97;--seq-5:#16365A;
-  --marca:#4A80C0;--marca-borde:#FFFFFF;--pista:#EBEFF5;
+  --seq-1:#A9C6E8;--seq-2:#6F9FD6;--seq-3:#3C70B0;--seq-4:#16365A;
+  --borde-marca:#0E2338;--pista:#EBEFF5;--nulo:#8A95A6;
+  --gi-surface:var(--surface);--gi-bg:var(--paper);--gi-ink:var(--ink);--gi-ink-mid:var(--ink-mid);--gi-ink-lo:var(--ink-lo);--gi-line:var(--line);--gi-accent:var(--accent);
 }
 :root[data-theme="dark"]{
   --paper:#0a0d13;--surface:#151c27;--surface-alt:#1a212c;--line:#232c3a;--line-2:#2b3547;
   --ink:#e9eef5;--ink-mid:#a3acbc;--ink-lo:#8a93a5;
-  --navy:#ff9d2f;--accent:#ff6a1a;--focus:#ff9d2f;--or:#ff9d2f;
+  --navy:#ff6a1a;--accent:#ff8a3c;--focus:#ff9d2f;--or:#ff9d2f;--on:#0a0d13;
   --grad:linear-gradient(135deg,#12161f 0%,#0d1119 60%,#161d28 100%);
-  --sh:inset 0 1px 0 rgba(255,255,255,.06),0 18px 34px -12px rgba(0,0,0,.7);
-  --seq-1:#2b3f5c;--seq-2:#3f6796;--seq-3:#6b97c8;--seq-4:#a3c3e6;--seq-5:#dcebfa;
-  --marca:#6b97c8;--marca-borde:#0a0d13;--pista:#232c3a;
+  --sh:0 8px 22px rgba(0,0,0,.55),0 2px 6px rgba(0,0,0,.5);
+  --card-grad:linear-gradient(180deg,#1a212c 0%,#11161f 100%);
+  --card-3d:inset 0 1px 0 rgba(255,255,255,.06),inset 0 -18px 30px rgba(0,0,0,.28),0 18px 34px -12px rgba(0,0,0,.70),0 6px 12px -6px rgba(0,0,0,.55);
+  --seq-1:#3f6796;--seq-2:#6b97c8;--seq-3:#a3c3e6;--seq-4:#e4f0fb;
+  --borde-marca:#0a0d13;--pista:#232c3a;--nulo:#6b7382;
+  --gi-surface:#151c27;--gi-bg:#0a0d13;--gi-ink:#e9eef5;--gi-ink-mid:#a3acbc;--gi-ink-lo:#8a93a5;--gi-line:#2b3547;--gi-accent:#ff8a3c;
 }
 *{box-sizing:border-box}
-html{scroll-behavior:smooth;scroll-padding-top:64px}
-body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-ui);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-ui);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
 h1,h2,h3{font-family:var(--font-display);letter-spacing:-.01em;margin:0;color:var(--ink)}
-h2{font-size:1.55rem;font-weight:600}
-h3{font-size:1.08rem;font-weight:600}
+h2{font-size:1.2rem;font-weight:600}
+h3{font-size:1.02rem;font-weight:600}
 a{color:var(--accent)}
-.num{font-family:var(--font-data);font-variant-numeric:tabular-nums}
+.ic{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
 :focus-visible{outline:2px solid var(--focus);outline-offset:2px}
-.aviso{background:var(--surface-alt);border-bottom:1px solid var(--line);color:var(--ink-mid);font-size:.8rem;text-align:center;padding:5px 16px}
-header.top{position:sticky;top:0;z-index:1200;display:flex;align-items:center;gap:20px;padding:10px 24px;background:var(--grad);color:#fff}
-header.top .marca{font-family:var(--font-display);font-weight:700;font-size:1.08rem;white-space:nowrap}
-header.top nav{display:flex;gap:18px;margin-left:auto;font-size:.88rem}
-header.top nav a{color:#fff;opacity:.85;text-decoration:none}
-header.top nav a:hover{opacity:1;text-decoration:underline}
-.tema{border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);color:#fff;width:34px;height:34px;border-radius:9px;cursor:pointer;font-size:1rem}
-main{max-width:1240px;margin:0 auto;padding:0 24px 40px}
-.entrada{padding:34px 0 22px;max-width:780px}
-.entrada h1{font-size:2.05rem;line-height:1.15;font-weight:700;margin-bottom:10px}
-.entrada p{color:var(--ink-mid);font-size:1.05rem;margin:0}
-.kpis{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:14px;margin-bottom:18px}
-.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;box-shadow:var(--sh);min-width:0}
-.kpi .e{font-size:.8rem;color:var(--ink-mid);font-weight:500;display:flex;align-items:center;gap:7px}
-.kpi .v{font-family:var(--font-data);font-size:1.95rem;font-weight:600;color:var(--navy);line-height:1.15;margin:4px 0 2px}
-.kpi.g .v{font-size:2.6rem}
-.kpi .n{font-size:.8rem;color:var(--ink-lo)}
-.led{width:9px;height:9px;border-radius:50%;background:#2E8B57;flex:none}
-.led.off{background:var(--ink-lo)}
+.wrap{max-width:1500px;margin:0 auto;padding:22px 26px 60px}
+.apptop{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;gap:5px;padding:30px 26px 26px;background:var(--grad);color:#fff;border-radius:var(--r-lg);margin-bottom:18px;overflow:hidden;box-shadow:var(--sh)}
+.apptop .emblem{width:44px;height:44px;opacity:.9;margin-bottom:4px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.apptop h1{color:#fff;font-weight:700;font-size:2.5rem;line-height:1.04;letter-spacing:-.02em}
+.apptop .sub{font-size:.72rem;text-transform:uppercase;letter-spacing:.6px;opacity:.82;font-weight:600;margin-top:2px}
+.apptop .by{font-size:.84rem;opacity:.95;margin-top:3px}
+.apptop .by a{color:#fff;font-weight:600;text-underline-offset:3px}
+.actions{position:absolute;top:16px;right:20px;display:flex;align-items:center;gap:10px}
+.live-badge{display:inline-flex;align-items:center;gap:7px;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#fff}
+.led{width:8px;height:8px;border-radius:50%;background:#3ed18a;flex:none}
+.led.off{background:#9aa5b5}
 :root[data-theme="dark"] .led:not(.off){background:#ff6a1a;box-shadow:0 0 6px rgba(255,150,40,.85),0 0 16px rgba(255,106,26,.55)}
-.controles{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 14px}
-.controles .t{font-size:.82rem;color:var(--ink-mid);margin-right:4px}
-.pill{border:1px solid var(--line-2);background:var(--surface);color:var(--ink);padding:7px 14px;min-height:36px;border-radius:20px;cursor:pointer;font:500 .85rem var(--font-ui)}
-.pill:hover{border-color:var(--navy)}
-.pill[aria-pressed="true"]{background:var(--navy);border-color:var(--navy);color:#fff}
-:root[data-theme="dark"] .pill[aria-pressed="true"]{color:#14100a}
-.tablero{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:16px;align-items:stretch}
-.caja{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);min-width:0}
-#mapa{height:680px;border-radius:var(--r);background:var(--surface-alt);z-index:1}
-.panel{padding:18px 20px;display:flex;flex-direction:column;min-width:0}
-.panel p.exp{color:var(--ink-mid);font-size:.88rem;margin:3px 0 12px}
-.ranking{display:grid;gap:1px;flex:1;align-content:start}
-.fila{display:grid;grid-template-columns:128px minmax(0,1fr) 66px;gap:10px;align-items:center;border:0;background:none;color:inherit;font:inherit;text-align:left;padding:4px 6px;border-radius:7px;cursor:pointer;min-height:32px;width:100%}
-.fila:hover{background:var(--surface-alt)}
-.fila.sel{background:var(--surface-alt);box-shadow:inset 3px 0 0 var(--accent)}
-.fila .c{font-size:.86rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fila .b{height:10px;background:var(--pista);border-radius:2px;overflow:hidden}
-.fila .b i{display:block;height:100%;background:var(--marca);border-radius:0 3px 3px 0}
-.fila .x{font-family:var(--font-data);font-size:.85rem;text-align:right;white-space:nowrap}
-.fila.apag .c,.fila.apag .x{color:var(--ink-lo)}
-.nota{font-size:.78rem;color:var(--ink-lo);margin:10px 0 0}
-.leyenda{position:absolute;left:10px;bottom:22px;z-index:800;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:9px;padding:8px 10px;font-size:.75rem;box-shadow:var(--sh);max-width:210px}
+.hdr-btn{border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.12);color:#fff;width:34px;height:34px;border-radius:9px;cursor:pointer;font-size:.95rem}
+.tabs{display:flex;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:6px;box-shadow:var(--sh);margin:0 0 18px}
+.tabs button{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;background:none;color:var(--ink-mid);font-family:var(--font-ui);font-weight:600;font-size:.92rem;padding:11px 17px;border-radius:9px;cursor:pointer;transition:background-color .15s,color .15s}
+.tabs button:hover{background:var(--surface-alt);color:var(--ink)}
+.tabs button.on{background:var(--navy);color:var(--on);box-shadow:0 2px 8px rgba(14,35,56,.18)}
+.tabs.ind button{padding:9px 10px;font-size:.84rem}
+:root[data-theme="dark"] .tabs,:root[data-theme="dark"] .card,:root[data-theme="dark"] .kpi,:root[data-theme="dark"] .banner{background-image:var(--card-grad);box-shadow:var(--card-3d)}
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-bottom:18px}
+.kpi{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;box-shadow:var(--sh);min-width:0}
+.kpi .kic{position:absolute;top:14px;right:15px;color:var(--accent);opacity:.42}
+.kpi .kic .ic{width:22px;height:22px}
+.kpi .n{font-family:var(--font-data);font-size:1.7rem;font-weight:700;color:var(--navy);line-height:1.1;letter-spacing:-.02em;white-space:nowrap}
+.kpi .l{font-size:.68rem;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-mid);font-weight:600;margin-top:6px}
+.kpi .s{font-size:.76rem;color:var(--or);font-weight:600;margin-top:2px}
+.banner{display:flex;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:var(--r);padding:14px 18px;box-shadow:var(--sh);margin-bottom:18px;font-family:var(--font-display);font-size:1.02rem}
+.banner .ic{width:22px;height:22px;color:var(--accent)}
+.banner b{font-weight:700}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;margin-bottom:18px;align-items:stretch}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;box-shadow:var(--sh);min-width:0}
+.card h2{display:flex;align-items:center;gap:8px}
+.card h2 .ic{color:var(--accent)}
+.desc{color:var(--ink-mid);font-size:.84rem;margin:3px 0 12px;max-width:72ch}
+.cardmapa{display:flex;flex-direction:column}
+.maprow{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px}
+.seglab{font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;font-weight:600;color:var(--ink-lo)}
+.seg{display:inline-flex;background:var(--surface-alt);border:1px solid var(--line);border-radius:9px;padding:2px;gap:2px}
+.seg button{border:0;background:none;color:var(--ink-mid);font:600 .78rem var(--font-ui);padding:6px 10px;border-radius:7px;cursor:pointer}
+.seg button.on{background:var(--navy);color:var(--on)}
+.mapbox{position:relative;flex:1;display:flex;flex-direction:column}
+.mapwrap{position:relative;flex:1;min-height:620px;border-radius:var(--r-sm);overflow:hidden}
+#mapa{position:absolute;inset:0;background:var(--surface-alt)}
+.leyenda{position:absolute;left:10px;bottom:24px;z-index:800;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:9px;padding:8px 10px;font-size:.74rem;box-shadow:var(--sh)}
 .leyenda b{display:block;font-weight:600;margin-bottom:4px}
-.leyenda .i{display:flex;align-items:center;gap:7px;margin-top:2px;white-space:nowrap}
-.leyenda s{display:inline-block;width:13px;height:13px;border-radius:50%;border:1px solid var(--marca-borde);text-decoration:none;flex:none}
-.basemaps{position:absolute;right:10px;top:10px;z-index:800;display:flex;background:var(--surface);border:1px solid var(--line);border-radius:9px;overflow:hidden;box-shadow:var(--sh)}
-.basemaps button{border:0;background:none;color:var(--ink);padding:7px 11px;min-height:34px;font:500 .78rem var(--font-ui);cursor:pointer}
-.basemaps button[aria-pressed="true"]{background:var(--navy);color:#fff}
-:root[data-theme="dark"] .basemaps button[aria-pressed="true"]{color:#14100a}
-.mapwrap{position:relative;min-width:0}
-.leaflet-container{font-family:var(--font-ui)}
-.leaflet-tooltip{font:500 .8rem var(--font-ui)}
-section{margin-top:44px}
-section>.sub{color:var(--ink-mid);max-width:72ch;margin:4px 0 16px}
-.tablawrap{overflow-x:auto;padding:0}
-table{width:100%;border-collapse:collapse;font-size:.87rem;min-width:780px}
-th{font:600 .76rem var(--font-ui);color:var(--ink-mid);text-align:right;padding:11px 12px;border-bottom:1px solid var(--line-2);vertical-align:bottom}
-th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:var(--surface)}
+.leyenda .i{display:flex;align-items:center;gap:7px;margin-top:3px;white-space:nowrap}
+.leyenda s{display:inline-block;width:12px;height:12px;border-radius:50%;border:1px solid var(--borde-marca);text-decoration:none;flex:none}
+.leyenda s.ring{background:none!important;border:1.5px solid var(--nulo)}
+.leaflet-container{font-family:var(--font-ui);background:var(--surface-alt)}
+.leaflet-tooltip{font:500 .8rem var(--font-ui);border-radius:7px}
+.lbl.leaflet-tooltip{background:none;border:0;box-shadow:none;padding:0 3px;font:600 .72rem var(--font-ui);color:var(--ink);text-shadow:0 0 3px var(--paper),0 0 3px var(--paper),0 0 3px var(--paper)}
+.lbl.leaflet-tooltip:before{display:none}
+.satel .lbl.leaflet-tooltip{color:#fff;text-shadow:0 0 3px #000,0 0 3px #000}
+:root[data-theme="dark"] .leaflet-bar a,:root[data-theme="dark"] .leaflet-control-attribution,:root[data-theme="dark"] .leaflet-tooltip:not(.lbl){background:#1a212c;color:#e9eef5;border-color:#2b3547}
+:root[data-theme="dark"] .leaflet-control-attribution a{color:#a3acbc}
+.panel{display:flex;flex-direction:column}
+.ranking{display:grid;gap:1px;align-content:start}
+.fila{display:grid;grid-template-columns:128px minmax(0,1fr) 84px;gap:10px;align-items:center;border:0;background:none;color:inherit;font:inherit;text-align:left;padding:3px 6px;border-radius:0 7px 7px 0;cursor:pointer;min-height:31px;width:100%}
+.fila:hover,.fila:focus-visible{background:var(--surface-alt)}
+.fila .c{font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fila .b{position:relative;height:10px;background:var(--pista);border-radius:2px}
+.fila .b i{position:absolute;left:0;top:0;bottom:0;border-radius:0 3px 3px 0}
+.fila .b u{position:absolute;top:-2px;bottom:-2px;border-left:1.5px solid var(--ink);border-right:1.5px solid var(--ink);opacity:.55}
+.fila .x{font-family:var(--font-data);font-size:.82rem;text-align:right;white-space:nowrap}
+.fila.apag .c,.fila.apag .x{color:var(--ink-lo)}
+.grupo{font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;font-weight:600;color:var(--ink-lo);margin:10px 6px 3px}
+.nota{font-size:.76rem;color:var(--ink-lo);margin:10px 0 0;line-height:1.45}
+.ficha .cab{display:flex;align-items:center;gap:10px;margin-bottom:2px}
+.ficha h3{font-size:1.25rem;flex:1}
+.volver{border:1px solid var(--line-2);background:var(--surface);color:var(--ink);font:600 .78rem var(--font-ui);padding:6px 10px;border-radius:8px;cursor:pointer;white-space:nowrap}
+.mini{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0 12px}
+.mini div{background:var(--surface-alt);border-radius:9px;padding:9px 11px;min-width:0}
+.mini b{display:block;font-family:var(--font-data);font-size:1.05rem;font-weight:600;color:var(--navy);white-space:nowrap}
+.mini span{display:block;font-size:.72rem;color:var(--ink-mid);line-height:1.25;margin-top:1px}
+.tablawrap{overflow:auto;max-height:78vh;padding:0;border-radius:var(--r)}
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:.84rem}
+th{font:600 .72rem var(--font-ui);color:var(--ink-mid);text-align:right;padding:10px 12px;border-bottom:1px solid var(--line-2);vertical-align:bottom;position:sticky;top:0;background:var(--surface);z-index:2}
+th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:var(--surface);z-index:1}
+th:first-child{z-index:3}
 th button{all:unset;cursor:pointer}
 th button:hover{color:var(--accent)}
 th button:focus-visible{outline:2px solid var(--focus)}
-td{padding:8px 12px;border-bottom:1px solid var(--line);text-align:right;font-family:var(--font-data);font-variant-numeric:tabular-nums;white-space:nowrap}
+td{padding:7px 12px;border-bottom:1px solid var(--line);text-align:right;font-family:var(--font-data);white-space:nowrap}
 td:first-child{font-family:var(--font-ui);font-weight:500}
 tbody tr{cursor:pointer}
 tbody tr:hover td{background:var(--surface-alt)}
-tbody tr.sel td{background:var(--surface-alt)}
-tbody tr:last-child td{border-bottom:0}
-.marca-p{color:var(--ink-lo);font-weight:400}
-.grilla{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
-.tema-c{padding:18px 20px}
-.tema-c p{color:var(--ink-mid);font-size:.9rem;margin:6px 0 0}
-.dos{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
-.dos .caja{padding:18px 20px}
-.dos p{color:var(--ink-mid);font-size:.92rem;margin:6px 0 0}
-details{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);margin-bottom:8px}
-summary{cursor:pointer;padding:12px 16px;font-family:var(--font-display);font-weight:600}
-details>div{padding:0 16px 14px;color:var(--ink-mid);font-size:.9rem;max-width:80ch}
-footer{border-top:1px solid var(--line);margin-top:48px;padding:20px 24px;color:var(--ink-lo);font-size:.82rem;text-align:center}
-@media (max-width:980px){
-  .tablero{grid-template-columns:1fr}
-  #mapa{height:520px}
-  .kpis{grid-template-columns:1fr 1fr}
-  .kpi.g,.kpi:last-child{grid-column:1/-1}
-  .grilla{grid-template-columns:1fr 1fr}
+tbody tr.sep td{background:var(--surface-alt);color:var(--ink-lo);font:600 .66rem var(--font-ui);text-transform:uppercase;letter-spacing:.5px;text-align:left;cursor:default;padding:6px 12px}
+tbody tr.ap td{color:var(--ink-lo)}
+:root[data-theme="dark"] th,:root[data-theme="dark"] th:first-child,:root[data-theme="dark"] td:first-child{background:#141a24}
+.dos{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px}
+.lista{margin:8px 0 0;padding-left:18px;color:var(--ink-mid);font-size:.9rem}
+.lista li{margin-bottom:5px}
+.tres{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.tres h3{margin-bottom:4px}
+.tres p{color:var(--ink-mid);font-size:.88rem;margin:0}
+.txt{color:var(--ink-mid);font-size:.9rem;max-width:88ch}
+.txt p{margin:.45em 0}
+.vista[hidden]{display:none}
+footer{margin-top:26px;color:var(--ink-lo);font-size:.8rem;text-align:center}
+.aviso{font-size:.76rem;color:var(--ink-lo);text-align:center;margin-top:4px}
+@media (max-width:1180px){.kpis{grid-template-columns:repeat(6,minmax(0,1fr))}.kpi{grid-column:span 2}.kpi:nth-child(n+4){grid-column:span 3}.tres{grid-template-columns:1fr 1fr}.tres .card:last-child{grid-column:1/-1}}
+@media (max-width:900px){
+  .grid,.dos{grid-template-columns:1fr}
+  .mapwrap{min-height:520px}
+  .apptop h1{font-size:1.9rem}
+  .actions{position:static;margin-bottom:8px}
 }
 @media (max-width:620px){
-  header.top{padding:9px 16px;gap:10px}
-  header.top nav{display:none}
-  .tema{margin-left:auto}
-  main{padding:0 16px 32px}
-  .entrada{padding:22px 0 16px}
-  .entrada h1{font-size:1.6rem}
-  .kpi .v{font-size:1.5rem}
-  .kpi.g .v{font-size:2.2rem}
-  .grilla,.dos{grid-template-columns:1fr}
-  .fila{grid-template-columns:104px minmax(0,1fr) 60px;gap:8px}
-  #mapa{height:460px}
+  .wrap{padding:12px 16px 40px}
+  .apptop{padding:16px 16px 18px}
+  .apptop h1{font-size:1.55rem}
+  .kpis{grid-template-columns:1fr 1fr;gap:10px}
+  .kpi,.kpi:nth-child(n+4){grid-column:auto}
+  .kpi:first-child{grid-column:1/-1}
+  .kpi{padding:12px 14px}
+  .kpi .n{font-size:1.25rem}
+  .kpi:first-child .n{font-size:1.5rem}
+  .tabs{overflow-x:auto;scrollbar-width:none}
+  .tabs button{flex:0 0 auto;padding:10px 13px;white-space:nowrap}
+  .tabs.ind{position:sticky;top:0;z-index:900}
+  .card{padding:14px}
+  .mapwrap{min-height:460px}
+  .fila{grid-template-columns:118px minmax(0,1fr) 76px;gap:8px;min-height:40px}
+  .mini{grid-template-columns:1fr 1fr}
+  .tres{grid-template-columns:1fr}
+  .tres .card:last-child{grid-column:auto}
+  .banner{font-size:.95rem;padding:12px 14px}
+  td:first-child{white-space:normal;min-width:104px;max-width:112px;box-shadow:2px 0 4px rgba(14,35,56,.08)}
+  .leyenda{position:static;margin-top:8px;box-shadow:none}
 }
-@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
 </style>
 </head>
 <body>
-<div class="aviso">Versión de trabajo: las cifras y los textos pueden cambiar.</div>
-<header class="top">
-  <div class="marca" id="marca">Transporte público de Chile</div>
-  <nav aria-label="Secciones">
-    <a href="#comparacion">Ciudades</a>
-    <a href="#tabla">Tabla</a>
-    <a href="#analisis">Análisis</a>
-    <a href="#metodo">Método</a>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-bus" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="15" rx="2"/><path d="M4 11h16M8 18v3M16 18v3"/><circle cx="8" cy="14.5" r=".6"/><circle cx="16" cy="14.5" r=".6"/></symbol>
+<symbol id="i-map" viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></symbol>
+<symbol id="i-bar" viewBox="0 0 24 24"><path d="M4 6h10M4 12h16M4 18h7"/></symbol>
+<symbol id="i-time" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+<symbol id="i-vel" viewBox="0 0 24 24"><path d="M4 18a9 9 0 1 1 16 0M12 15l4-5"/></symbol>
+<symbol id="i-gente" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0M16 5a3 3 0 0 1 0 6M18 14a5 5 0 0 1 3 6"/></symbol>
+<symbol id="i-city" viewBox="0 0 24 24"><path d="M4 21V8l6-3v16M10 21V10l10 3v8M3 21h18"/></symbol>
+<symbol id="i-tabla" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10M15 10v10"/></symbol>
+<symbol id="i-lupa" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
+<symbol id="i-doc" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7"/></symbol>
+<symbol id="i-pulso" viewBox="0 0 24 24"><path d="M3 12h4l3-7 4 14 3-7h4"/></symbol>
+</defs></svg>
+<div class="wrap">
+  <header class="apptop">
+    <div class="actions">
+      <span class="live-badge"><span class="led off" id="led"></span><span id="ledT">En vivo</span></span>
+      <button class="hdr-btn" id="temaBtn" aria-label="Cambiar entre tema claro y oscuro" title="Tema claro u oscuro">☾</button>
+    </div>
+    <svg class="emblem" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-bus"/></svg>
+    <h1>Transporte público de Chile</h1>
+    <div class="sub">Datos resumen por ciudad · Registros GPS 2026</div>
+    <div class="by">By: <a href="mailto:romedinag@gmail.com">Rodrigo Medina</a></div>
+  </header>
+
+  <nav class="tabs" id="mainTabs" aria-label="Secciones">
+    <button class="on" data-v="ciudades"><svg class="ic"><use href="#i-map"/></svg>Ciudades</button>
+    <button data-v="dia"><svg class="ic"><use href="#i-time"/></svg>Durante el día</button>
+    <button data-v="tabla"><svg class="ic"><use href="#i-tabla"/></svg>Tabla</button>
+    <button data-v="analisis"><svg class="ic"><use href="#i-lupa"/></svg>Análisis</button>
+    <button data-v="metodo"><svg class="ic"><use href="#i-doc"/></svg>Método</button>
   </nav>
-  <button class="tema" id="temaBtn" aria-label="Cambiar entre tema claro y oscuro" title="Tema claro u oscuro">☾</button>
-</header>
-<main>
-  <div class="entrada">
-    <h1>El transporte público de Chile, ciudad por ciudad</h1>
-    <p>Los buses de las ciudades reguladas transmiten su posición a lo largo del día. Con esos registros es posible observar y comparar cómo opera cada sistema.</p>
-  </div>
+
   <div class="kpis" aria-live="polite">
-    <div class="kpi g"><div class="e"><span class="led off" id="led"></span><span id="kE">Buses en ruta ahora</span></div><div class="v" id="kBuses">—</div><div class="n" id="kBusesN">Cargando el dato en vivo…</div></div>
-    <div class="kpi"><div class="e">Ciudades en vivo</div><div class="v" id="kCiud">—</div><div class="n" id="kCiudN"></div></div>
-    <div class="kpi"><div class="e">Ciudades comparadas</div><div class="v" id="kComp">—</div><div class="n">con un mismo método</div></div>
-    <div class="kpi"><div class="e">Personas en las ciudades comparadas</div><div class="v" id="kPob">—</div><div class="n">Censo 2024</div></div>
+    <div class="kpi"><span class="kic"><svg class="ic"><use href="#i-bus"/></svg></span><div class="n" id="kBuses">—</div><div class="l">Buses en ruta ahora</div><div class="s" id="kBusesN">Cargando…</div></div>
+    <div class="kpi"><span class="kic"><svg class="ic"><use href="#i-vel"/></svg></span><div class="n" id="kVel">—</div><div class="l">Velocidad en día laboral</div><div class="s">km/h, mínima y máxima</div></div>
+    <div class="kpi"><span class="kic"><svg class="ic"><use href="#i-city"/></svg></span><div class="n" id="kComp">—</div><div class="l">Sistemas comparados</div><div class="s" id="kCompN"></div></div>
+    <div class="kpi"><span class="kic"><svg class="ic"><use href="#i-time"/></svg></span><div class="n" id="kHoras">—</div><div class="l">Horas con la mitad de los buses</div><div class="s">mínima y máxima</div></div>
+    <div class="kpi"><span class="kic"><svg class="ic"><use href="#i-gente"/></svg></span><div class="n" id="kPob">—</div><div class="l">Personas en las comunas</div><div class="s">Censo 2024</div></div>
   </div>
+  <div class="banner"><svg class="ic" aria-hidden="true"><use href="#i-pulso"/></svg><div id="banner">Cargando el dato en vivo…</div></div>
 
-  <section id="comparacion" style="margin-top:28px">
-    <div class="controles" role="group" aria-label="Indicador">
-      <span class="t">Ver:</span>
-      <span id="pills" style="display:contents"></span>
-    </div>
-    <div class="tablero">
-      <div class="caja mapwrap">
-        <div id="mapa" role="region" aria-label="Mapa de ciudades de Chile"></div>
-        <div class="basemaps" role="group" aria-label="Fondo del mapa">
-          <button id="bmBase" aria-pressed="true">Mapa</button><button id="bmSat" aria-pressed="false">Satélite</button>
+  <section class="vista" id="v-ciudades">
+    <div class="tabs ind" id="pills" role="group" aria-label="Indicador"></div>
+    <div class="grid">
+      <div class="card cardmapa">
+        <h2><svg class="ic"><use href="#i-map"/></svg>Mapa</h2>
+        <p class="desc" id="mapDesc"></p>
+        <div class="maprow">
+          <span class="seglab">Zona</span>
+          <div class="seg" id="zonas"><button class="on" data-z="chile">Chile</button><button data-z="norte">Norte</button><button data-z="centro">Centro</button><button data-z="sur">Sur</button></div>
+          <span class="seglab">Fondo</span>
+          <div class="seg" id="fondos"><button class="on" data-f="base">Calles</button><button data-f="sat">Satélite</button></div>
         </div>
-        <div class="leyenda" id="leyenda"></div>
+        <div class="mapbox"><div class="mapwrap"><div id="mapa" role="region" aria-label="Mapa de ciudades de Chile"></div></div><div class="leyenda" id="leyenda"></div></div>
       </div>
-      <div class="caja panel">
-        <h3 id="pTit"></h3>
-        <p class="exp" id="pExp"></p>
-        <div class="ranking" id="ranking"></div>
-        <p class="nota" id="pNota"></p>
-      </div>
+      <div class="card panel" id="panel"></div>
     </div>
   </section>
 
-  <section id="tabla">
-    <h2>Las ciudades lado a lado</h2>
-    <p class="sub">Haz clic en un encabezado para ordenar y en una ciudad para ubicarla en el mapa.</p>
-    <div class="caja tablawrap"><table id="tablaC"><thead><tr id="thead"></tr></thead><tbody id="tbody"></tbody></table></div>
+  <section class="vista" id="v-dia" hidden>
+    <div class="card" style="margin-bottom:18px">
+      <h2><svg class="ic"><use href="#i-time"/></svg>Durante el día</h2>
+      <p class="desc">Haz clic en un gráfico para ampliarlo y descargarlo; los nombres de la leyenda encienden y apagan cada ciudad.</p>
+      <div id="graf" class="gi-host"></div>
+    </div>
   </section>
 
-  <section id="analisis">
-    <h2>Lo que estos datos permiten analizar</h2>
-    <p class="sub">Este resumen muestra una parte de lo que permiten los registros de operación. Con ellos, y cruzados con censo, encuestas y validaciones, es posible responder preguntas específicas de cada sistema.</p>
+  <section class="vista" id="v-tabla" hidden>
+    <div class="card" style="padding:0"><div class="tablawrap"><table id="tablaC"><thead><tr id="thead"></tr></thead><tbody id="tbody"></tbody></table></div></div>
+    <p class="nota" id="tNota"></p>
+  </section>
+
+  <section class="vista" id="v-analisis" hidden>
+    <div class="card" style="margin-bottom:18px">
+      <h2><svg class="ic"><use href="#i-lupa"/></svg>Lo que estos datos permiten analizar</h2>
+      <p class="desc" style="margin-bottom:0">Este resumen muestra una parte de lo que permiten los registros de operación. Cruzados con censo, encuestas y validaciones, responden preguntas específicas de cada sistema.</p>
+    </div>
     <div class="dos">
-      <div class="caja"><h3>Para organismos públicos</h3><p>Cobertura y nivel de servicio por territorio, brechas por nivel socioeconómico y horario, comparación de la oferta con el programa publicado, y priorización de infraestructura con evidencia.</p></div>
-      <div class="caja"><h3>Para operadores</h3><p>Uso del GPS que ya existe a bordo: regularidad y agrupamiento de buses, tiempos de ciclo, velocidad por tramo y por hora, distribución de la flota y ajuste de la oferta a la demanda durante el día.</p></div>
+      <div class="card"><h3>Para organismos públicos</h3><ul class="lista"><li>Cobertura y nivel de servicio por territorio, a nivel de manzana censal.</li><li>Brechas por nivel socioeconómico y por horario.</li><li>Oferta observada frente al programa publicado.</li><li>Priorización de infraestructura con evidencia.</li></ul></div>
+      <div class="card"><h3>Para operadores</h3><ul class="lista"><li>Uso del GPS que ya existe a bordo.</li><li>Regularidad y agrupamiento de buses.</li><li>Tiempos de ciclo y velocidad por tramo y hora.</li><li>Distribución de la flota y ajuste de la oferta a la demanda.</li></ul></div>
     </div>
-    <div class="grilla">
-      <div class="caja tema-c"><h3>Velocidad por eje</h3><p>Hora a hora y en días críticos, para identificar dónde se pierde tiempo y cuánto.</p></div>
-      <div class="caja tema-c"><h3>Efecto de los corredores</h3><p>Uso de la infraestructura dedicada y estabilidad de la velocidad frente a vías mixtas.</p></div>
-      <div class="caja tema-c"><h3>Cobertura y accesibilidad</h3><p>A nivel de manzana censal: acceso, espera y alcance a salud, educación y empleo.</p></div>
-      <div class="caja tema-c"><h3>Oferta y demanda</h3><p>Forma horaria de la oferta frente a las validaciones y perfiles de carga por línea.</p></div>
-      <div class="caja tema-c"><h3>Regularidad del servicio</h3><p>Intervalos reales entre buses, agrupamiento y su efecto en la espera de las personas.</p></div>
-      <div class="caja tema-c"><h3>Calidad del dato</h3><p>Control de los registros GPS y de los campos que informa cada sistema.</p></div>
+    <div class="tres">
+      <div class="card"><h3>Velocidad por eje</h3><p>Hora a hora y en días críticos, para identificar dónde se pierde tiempo y cuánto.</p></div>
+      <div class="card"><h3>Efecto de los corredores</h3><p>Uso de la infraestructura dedicada y estabilidad de la velocidad frente a vías mixtas.</p></div>
+      <div class="card"><h3>Oferta y demanda</h3><p>Forma horaria de la oferta frente a las validaciones, y perfiles de carga por línea.</p></div>
     </div>
   </section>
 
-  <section id="metodo">
-    <h2>Método y límites</h2>
-    <p class="sub">Todas las cifras son agregados por ciudad. Este sitio no publica patentes, posiciones de buses individuales ni microdato.</p>
-    <details open><summary>Cómo se compara la velocidad</summary><div>Velocidad física entre pulsos GPS consecutivos, con un pulso por bus por minuto, sin terminales, entre 07:00 y 21:00. Se usan martes y miércoles (día laboral) y domingo de la segunda semana de <span id="mMuestra"></span>, sin feriados. Sirve para comparar ciudades, no para fijar un valor absoluto: para Gran Santiago, DTPM informa 18,3 km/h en día laboral en 2024 con otra definición. Diferencias menores a unos 0,6 km/h no se distinguen.</div></details>
-    <details><summary>Qué significa cada indicador</summary><div><p><b>Cobertura:</b> población a 400 metros o menos de un paradero; no dice cuánto servicio pasa por ese paradero.</p><p><b>Buses por 10.000 habitantes:</b> buses en ruta en la hora punta sobre la población de la ciudad. No considera el tamaño de los buses, y en Gran Santiago no incluye Metro.</p><p><b>Horas de servicio:</b> horas de un día laboral con al menos la mitad de los buses de punta.</p><p><b>Oferta en valle:</b> buses en ruta entre 10:00 y 16:00 como porcentaje de la hora punta.</p></div></details>
-    <details><summary>El dato en vivo</summary><div>Se actualiza cada 30 minutos desde el GTFS-RT de cada ciudad, y la captura se detiene entre 01:00 y 05:00. Lo normal es el promedio histórico de esa franja y ese tipo de día. Gran Santiago y La Serena no tienen captura en vivo en este sitio; Linares se captura, pero aún no tiene histórico.</div></details>
-    <details><summary>Fuentes</summary><div>Registros GPS entregados por el Ministerio de Transportes y Telecomunicaciones y DTPM por solicitud de transparencia (2025–2026); GTFS y GTFS-RT regional; Censo 2024 (INE); cartografía de OpenStreetMap y Esri. La Serena se muestra aparte porque la fuente cubre sólo 2 líneas.</div></details>
+  <section class="vista" id="v-metodo" hidden>
+    <div class="dos">
+      <div class="card txt"><h3>Velocidad</h3><p>Velocidad física entre pulsos GPS consecutivos, con un pulso por bus por minuto y sin terminales, entre 07:00 y 21:00. Se usan martes y miércoles y el domingo de la segunda semana de <span id="mMuestra"></span>, sin feriados. La marca en cada barra es el intervalo de 95 % entre días.</p><p>Sirve para comparar ciudades, no para fijar un valor absoluto, y puede diferir de los tableros de cada ciudad, que usan otras definiciones. Para Gran Santiago, DTPM informa 18,3 km/h en día laboral en 2024; con una definición cercana a la suya se obtienen 17,6 km/h.</p></div>
+      <div class="card txt"><h3>Otros indicadores</h3><p><b>Aumento en domingo:</b> velocidad de domingo sobre la laboral. Es un indicio de congestión, no una medición de ella.</p><p><b>Buses en punta por habitante:</b> sólo buses en ruta, sin plazas ni otros modos, como Metro, tren o colectivos.</p><p><b>Cobertura:</b> población en manzanas censales a 400 metros o menos de un paradero. No dice cuánto servicio pasa por ese paradero.</p><p><b>Horas con la mitad de los buses:</b> mide la forma del día respecto de la punta de cada ciudad. <b>Buses en valle:</b> 10:00 a 16:00 sobre la punta; un valor alto indica una oferta más plana, no un mejor servicio.</p></div>
+    </div>
+    <div class="dos">
+      <div class="card txt"><h3>Dato en vivo</h3><p>Se actualiza cada 30 minutos, y la captura se detiene de 01:00 a 05:00. La comparación usa el promedio histórico de esa franja y ese tipo de día: es una foto contra un promedio, no una medición de cumplimiento. No incluye Gran Santiago ni La Serena, que no se capturan en este sitio.</p></div>
+      <div class="card txt"><h3>Alcance y fuentes</h3><p>Registros GPS entregados por el Ministerio de Transportes y Telecomunicaciones por solicitud de acceso a la información; GTFS; Censo 2024 (INE); cartografía de OpenStreetMap y Esri. Algunas zonas con GPS, como Puerto Montt y Limache-Olmué, aún no están incluidas. Arica, Curicó, Los Ángeles, Puerto Varas y Coyhaique no tienen perímetro de exclusión y no reportan estos datos.</p></div>
+    </div>
+    <div class="card" style="padding:0"><div class="tablawrap" style="max-height:none"><table><thead><tr><th>Ciudad</th><th style="text-align:left">Comunas consideradas</th><th style="text-align:left">Fuera de cobertura y población</th><th>Líneas</th><th>Días L + D</th><th>Pulsos</th></tr></thead><tbody id="tMetodo"></tbody></table></div></div>
+    <p class="nota">Quedan fuera las comunas con menos de 60 % de su población a 400 metros de un paradero: la fuente las sirve sólo en parte o su geometría está en revisión. En Gran Concepción, los buses por hora cubren 36 líneas y 7 comunas, y sobre esas 7 se calcula el indicador por habitante. Todas las cifras son agregados por ciudad: este sitio no publica patentes, posiciones de buses individuales ni microdato.</p>
   </section>
-</main>
-<footer>Elaboración de Rodrigo Medina González. Datos agregados; sin patentes ni posiciones individuales.</footer>
+
+  <footer>By: <a href="mailto:romedinag@gmail.com">Rodrigo Medina</a><div class="aviso">Versión de trabajo: las cifras y los textos pueden cambiar.</div></footer>
+</div>
 <script>/* @preserve
  * Leaflet 1.9.4, a JS library for interactive maps. https://leafletjs.com
  * (c) 2010-2023 Vladimir Agafonkin, (c) 2010-2011 CloudMade
@@ -891,123 +1484,177 @@ footer{border-top:1px solid var(--line);margin-top:48px;padding:20px 24px;color:
 //# sourceMappingURL=leaflet.js.map</script>
 <script>
 "use strict";
-const NAC={"ciudades":[{"id":"iquique","nombre":"Iquique","lat":-20.254,"lon":-70.12,"parcial":false,"pob":326596,"vivo":true,"vel_lab":17.1,"vel_dom":18.5,"gana_dom":9,"cob400":92.4,"horas":13.5,"hasta":"20:00","buses_pico":227,"buses_10k":6.9,"pct_22":11,"valle":93,"normal":{"L":[9,5,2,0,0,0,0,0,0,0,0,8,45,106,166,209,227,226,222,217,214,214,216,217,218,218,216,213,204,198,198,202,205,205,204,204,200,192,177,156,131,102,73,47,30,21,17,14],"S":[10,6,2,1,0,0,0,0,0,0,0,2,7,27,59,95,120,138,149,156,162,165,168,170,171,170,169,166,160,154,148,145,145,142,140,137,130,121,110,97,82,66,48,33,23,16,12,10],"D":[8,5,2,0,0,0,0,0,0,0,0,0,2,8,22,42,65,85,101,110,118,122,125,128,129,129,129,126,122,118,114,110,108,104,101,96,90,83,75,65,56,46,34,23,14,8,7,5]}},{"id":"tocopilla","nombre":"Tocopilla","lat":-22.09,"lon":-70.196,"parcial":false,"pob":23765,"vivo":true,"vel_lab":17.6,"vel_dom":18.9,"gana_dom":8,"cob400":100.0,"horas":14.0,"hasta":"20:30","buses_pico":8,"buses_10k":3.2,"pct_22":0,"valle":92,"normal":{"L":[0,0,0,0,0,0,0,0,0,0,0,0,0,3,6,8,8,7,7,7,7,7,7,7,7,7,7,8,8,7,7,7,7,7,7,8,8,7,8,7,8,7,2,0,0,0,0,0],"S":[null,null,null,null,null,null,null,null,null,null,null,null,null,0,0,0,0,2,3,4,6,6,6,6,6,6,7,6,6,6,6,6,5,5,5,5,5,5,3,2,0,0,0,0,0,0,0,null],"D":[null,null,null,null,null,null,null,null,null,null,null,null,0,0,0,0,0,2,3,4,5,4,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,4,4,1,0,1,0,0,0,0,0,0]}},{"id":"calama","nombre":"Calama","lat":-22.455,"lon":-68.932,"parcial":false,"pob":156882,"vivo":true,"vel_lab":13.0,"vel_dom":13.9,"gana_dom":7,"cob400":93.4,"horas":12.5,"hasta":"19:30","buses_pico":95,"buses_10k":6.1,"pct_22":2,"valle":96,"normal":{"L":[0,0,0,0,0,0,0,0,0,0,0,0,2,12,46,71,88,98,97,94,92,93,93,94,92,92,91,91,89,90,91,92,92,92,92,90,85,79,71,59,42,24,12,5,2,1,1,0],"S":[0,0,0,1,0,0,0,0,0,0,0,0,0,1,2,3,13,29,46,63,71,73,72,72,72,71,69,69,69,70,71,71,72,72,70,69,67,61,48,28,15,10,6,4,3,1,1,1],"D":[1,1,0,0,0,0,0,0,0,0,0,0,0,1,2,3,12,25,40,53,58,57,57,57,57,56,55,54,55,57,58,59,59,57,57,56,49,35,23,14,8,6,5,4,2,1,1,0]}},{"id":"antofagasta","nombre":"Antofagasta","lat":-23.614,"lon":-70.389,"parcial":false,"pob":388478,"vivo":true,"vel_lab":16.8,"vel_dom":17.8,"gana_dom":6,"cob400":96.0,"horas":15.0,"hasta":"21:00","buses_pico":459,"buses_10k":11.8,"pct_22":25,"valle":98,"normal":{"L":[4,1,0,0,0,0,0,0,0,3,18,55,136,248,353,416,449,463,462,456,452,447,444,446,450,454,457,461,457,451,446,446,447,446,446,447,449,447,433,406,364,317,266,205,141,90,48,20],"S":[6,1,1,0,0,0,0,0,0,2,12,27,58,104,159,217,266,309,338,360,376,385,393,398,402,403,404,404,402,397,392,387,382,379,376,371,366,356,340,320,294,264,225,172,119,75,39,17],"D":[6,2,0,0,0,0,0,0,0,1,6,13,30,58,96,139,177,214,246,275,295,310,317,322,326,329,330,332,332,328,324,321,319,314,310,305,298,289,277,262,240,214,178,135,92,56,28,12]}},{"id":"copiapo","nombre":"Copiapó","lat":-27.376,"lon":-70.314,"parcial":false,"pob":160462,"vivo":true,"vel_lab":15.3,"vel_dom":17.3,"gana_dom":13,"cob400":91.1,"horas":15.0,"hasta":"21:30","buses_pico":69,"buses_10k":4.3,"pct_22":29,"valle":90,"normal":{"L":[2,0,0,0,0,0,0,0,0,0,0,1,14,32,48,60,68,70,67,63,60,58,58,59,62,66,69,71,69,62,58,57,59,62,65,67,69,67,65,61,56,51,44,36,25,15,8,3],"S":[2,1,0,0,0,0,0,0,0,0,0,0,0,0,10,22,32,38,41,42,43,46,48,48,50,50,51,52,52,50,48,46,45,44,44,44,44,43,41,40,38,37,31,23,12,4,2,0],"D":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,9,18,28,33,35,37,38,39,40,40,40,41,41,41,41,40,39,38,37,36,36,36,36,35,34,32,31,29,22,14,6,2,1,0]}},{"id":"la_serena","nombre":"La Serena","lat":-29.945,"lon":-71.276,"parcial":true,"pob":457215,"vivo":false,"vel_lab":15.6,"vel_dom":19.0,"gana_dom":22,"cob400":32.4,"horas":16.0,"hasta":"22:00","buses_pico":35,"buses_10k":0.8,"pct_22":62,"valle":80,"normal":{"L":[0,0,0,0,0,0,0,0,0,0,0,5,12,22,28,31,32,32,32,28,27,27,27,28,28,28,28,29,28,29,28,28,28,29,30,31,31,34,35,35,31,28,27,29,26,17,9,3],"S":[1,0,0,0,0,0,0,0,0,0,0,1,4,9,15,21,22,24,24,25,25,26,26,26,27,28,28,28,28,28,26,24,22,20,20,21,20,21,20,21,20,21,21,20,16,10,6,2],"D":[0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,8,12,16,14,14,15,18,19,19,19,19,19,20,19,19,19,20,19,19,19,19,19,19,19,18,17,17,13,9,5,2,0,0]}},{"id":"valparaiso","nombre":"Gran Valparaíso","lat":-33.038,"lon":-71.512,"parcial":false,"pob":944418,"vivo":true,"vel_lab":18.9,"vel_dom":21.0,"gana_dom":11,"cob400":89.7,"horas":14.0,"hasta":"20:00","buses_pico":974,"buses_10k":10.3,"pct_22":8,"valle":93,"normal":{"L":[4,3,3,2,2,2,2,2,2,2,35,110,296,551,772,905,972,975,960,928,913,907,910,918,922,926,927,924,903,879,864,866,876,885,887,886,864,819,739,631,506,386,267,168,97,49,20,9],"S":[5,4,3,2,2,2,2,2,2,2,16,42,109,206,308,395,468,524,573,606,635,654,670,682,687,693,694,690,677,662,638,621,609,598,586,569,544,510,465,411,352,287,214,140,84,42,18,9],"D":[5,4,3,2,2,2,2,2,2,2,10,19,45,80,137,202,270,322,370,404,431,453,472,482,491,495,495,490,480,467,455,445,437,430,420,405,386,360,329,291,245,193,138,81,42,21,9,5]}},{"id":"santiago","nombre":"Gran Santiago","lat":-33.481,"lon":-70.655,"parcial":false,"pob":6351525,"vivo":false,"vel_lab":16.0,"vel_dom":19.0,"gana_dom":19,"cob400":94.9,"horas":16.5,"hasta":"22:00","buses_pico":5046,"buses_10k":7.9,"pct_22":48,"valle":72,"normal":{"L":[836,514,341,254,212,196,192,194,256,341,642,1572,2634,3542,4293,4874,5125,4967,4681,4307,3924,3657,3515,3496,3526,3563,3584,3605,3596,3596,3602,3682,3837,4054,4294,4559,4796,4891,4805,4594,4280,3887,3425,2990,2605,2295,1861,1370],"S":[883,549,362,270,224,205,198,197,247,282,419,917,1412,1785,2051,2239,2345,2424,2493,2538,2556,2566,2602,2652,2707,2742,2754,2750,2745,2730,2685,2625,2590,2560,2551,2544,2543,2524,2492,2429,2320,2208,2089,1942,1785,1606,1333,1042],"D":[726,470,333,254,212,196,189,187,230,253,352,745,1116,1380,1537,1668,1743,1803,1863,1932,1989,2052,2102,2137,2166,2196,2208,2209,2184,2149,2111,2098,2109,2118,2124,2128,2145,2146,2122,2084,2046,1977,1906,1753,1603,1432,1233,993]}},{"id":"rancagua","nombre":"Rancagua","lat":-34.167,"lon":-70.721,"parcial":false,"pob":304044,"vivo":true,"vel_lab":14.9,"vel_dom":18.0,"gana_dom":21,"cob400":82.6,"horas":13.0,"hasta":"19:30","buses_pico":125,"buses_10k":4.1,"pct_22":1,"valle":91,"normal":{"L":[0,0,0,0,0,0,0,0,0,0,0,2,14,49,97,121,126,124,118,115,116,119,119,122,121,120,116,113,109,105,104,107,110,111,110,107,102,96,84,68,51,34,16,6,2,0,0,0],"S":[0,0,0,0,0,0,0,0,0,0,0,0,2,10,27,37,42,48,53,59,61,65,67,67,67,66,65,62,57,55,53,53,52,51,48,45,42,38,34,30,24,20,10,3,1,0,0,0],"D":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,5,18,26,29,30,34,39,40,40,40,40,38,38,35,35,34,33,32,31,28,24,22,21,21,19,15,13,6,2,0,0,0,0]}},{"id":"talca","nombre":"Talca","lat":-35.434,"lon":-71.653,"parcial":false,"pob":265763,"vivo":true,"vel_lab":15.5,"vel_dom":18.9,"gana_dom":22,"cob400":86.1,"horas":14.0,"hasta":"20:30","buses_pico":97,"buses_10k":3.6,"pct_22":0,"valle":89,"normal":{"L":[0,0,0,0,0,0,0,0,0,0,0,0,0,12,66,95,98,95,89,85,84,85,85,88,89,91,89,90,87,84,82,84,86,88,89,92,94,94,92,86,76,63,30,7,1,0,0,0],"S":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,10,30,45,45,47,47,49,49,50,50,51,52,52,50,48,47,45,45,45,45,45,45,45,43,39,27,12,1,0,0,0,0,0],"D":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,13,25,30,37,38,38,38,40,40,40,41,41,39,38,37,37,36,36,36,36,35,35,33,24,7,1,0,0,0,0,0,0]}},{"id":"chillan","nombre":"Chillán","lat":-36.586,"lon":-72.077,"parcial":false,"pob":233129,"vivo":true,"vel_lab":16.3,"vel_dom":18.2,"gana_dom":11,"cob400":80.4,"horas":13.0,"hasta":"20:00","buses_pico":163,"buses_10k":7.0,"pct_22":1,"valle":94,"normal":{"L":[0,0,0,0,0,0,0,0,0,0,0,2,11,35,75,118,147,162,164,162,161,161,160,159,157,153,152,151,148,146,147,150,154,157,159,160,162,160,151,134,107,73,37,14,3,0,0,0],"S":[0,0,0,0,0,0,0,0,0,0,0,0,1,2,11,27,51,74,92,103,108,108,110,108,108,105,102,99,97,96,98,99,101,102,102,102,101,98,92,80,62,40,19,6,1,0,0,0],"D":[0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,7,18,34,49,63,71,73,74,74,72,71,69,67,65,64,65,66,66,67,67,68,67,66,60,51,38,24,10,3,1,0,0,0]}},{"id":"gccp","nombre":"Gran Concepción","lat":-36.823,"lon":-73.065,"parcial":false,"pob":861129,"vivo":true,"vel_lab":20.6,"vel_dom":23.4,"gana_dom":13,"cob400":89.9,"horas":14.5,"hasta":"20:30","buses_pico":1039,"buses_10k":12.1,"pct_22":18,"valle":96,"normal":{"L":[4,1,0,0,0,0,0,0,0,1,17,87,275,535,780,936,1025,1052,1042,1007,991,988,991,998,1004,1009,1010,1008,994,974,963,970,980,994,998,1002,990,960,895,799,674,550,450,342,239,140,64,21],"S":[6,2,0,0,0,0,0,0,0,0,4,33,102,205,328,438,520,569,604,628,649,666,679,692,700,706,704,699,686,671,656,645,635,624,612,597,574,542,504,456,406,344,272,199,130,74,37,15],"D":[5,2,0,0,0,0,0,0,0,0,1,14,45,96,167,240,312,363,402,432,459,469,476,479,484,486,484,480,477,468,460,452,444,441,434,424,410,386,362,332,303,263,211,153,94,55,26,10]}},{"id":"temuco","nombre":"Temuco","lat":-38.741,"lon":-72.623,"parcial":false,"pob":312921,"vivo":true,"vel_lab":18.6,"vel_dom":20.6,"gana_dom":11,"cob400":94.9,"horas":14.5,"hasta":"20:30","buses_pico":591,"buses_10k":18.9,"pct_22":14,"valle":96,"normal":{"L":[25,24,23,23,23,22,22,22,22,22,24,53,181,367,476,568,590,591,584,575,572,569,570,572,572,571,570,570,569,565,564,572,576,577,577,578,574,562,536,494,435,354,266,181,108,58,35,28],"S":[17,15,15,15,14,14,14,14,14,14,14,16,32,90,160,233,288,318,329,338,343,346,349,350,353,352,351,349,346,344,341,340,340,339,337,333,328,316,300,259,213,159,114,75,49,30,21,18],"D":[13,12,12,12,11,11,11,11,11,11,11,11,18,45,85,125,164,198,227,241,245,248,250,250,251,251,249,249,248,247,246,245,245,245,243,243,239,234,221,190,149,110,78,50,32,22,16,14]}},{"id":"villarrica","nombre":"Villarrica","lat":-39.31,"lon":-72.223,"parcial":false,"pob":37671,"vivo":true,"vel_lab":17.6,"vel_dom":20.1,"gana_dom":15,"cob400":90.6,"horas":14.0,"hasta":"20:30","buses_pico":15,"buses_10k":4.0,"pct_22":3,"valle":81,"normal":{"L":[0,0,0,0,0,0,0,0,0,0,0,0,0,4,12,15,15,15,15,14,13,12,12,12,12,12,13,13,13,12,11,11,12,12,14,14,15,15,14,13,11,8,5,2,1,0,0,0],"S":[0,0,0,null,null,null,0,null,0,null,null,null,null,0,3,5,7,8,9,8,8,8,8,8,8,8,9,9,8,8,8,8,8,8,8,8,8,8,9,8,7,4,2,1,0,0,0,0],"D":[0,null,null,null,0,null,0,0,null,0,0,0,0,0,2,1,2,3,5,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,7,6,7,5,5,3,2,1,1,0,0,0,null,0]}},{"id":"valdivia","nombre":"Valdivia","lat":-39.834,"lon":-73.23,"parcial":false,"pob":149032,"vivo":true,"vel_lab":18.4,"vel_dom":20.1,"gana_dom":9,"cob400":86.2,"horas":14.0,"hasta":"20:30","buses_pico":178,"buses_10k":12.0,"pct_22":3,"valle":96,"normal":{"L":[0,0,0,0,0,0,0,0,0,0,0,1,12,48,96,142,173,183,177,174,174,174,175,175,174,173,171,171,168,168,169,171,174,175,174,177,177,176,171,160,140,112,70,33,10,2,0,0],"S":[0,0,0,0,0,0,0,0,0,0,0,0,1,5,26,56,80,96,105,108,112,115,120,122,122,122,121,120,118,117,117,116,116,116,116,116,115,114,110,103,88,69,43,19,6,2,1,1],"D":[0,0,0,0,0,0,0,0,0,0,0,0,0,1,8,20,35,53,70,84,91,95,97,98,99,100,99,98,97,96,96,96,96,96,96,96,95,92,86,75,59,43,24,10,2,1,0,0]}},{"id":"osorno","nombre":"Osorno","lat":-40.575,"lon":-73.152,"parcial":false,"pob":145744,"vivo":true,"vel_lab":15.4,"vel_dom":16.9,"gana_dom":10,"cob400":92.8,"horas":13.0,"hasta":"19:30","buses_pico":128,"buses_10k":8.8,"pct_22":0,"valle":94,"normal":{"L":[0,0,0,0,0,0,0,0,0,0,2,3,7,37,79,108,126,130,126,121,122,123,124,123,122,121,118,117,116,118,120,123,123,121,118,117,111,103,91,73,51,27,9,2,0,0,0,0],"S":[0,0,0,0,0,0,0,0,0,0,0,0,1,2,8,22,46,65,76,83,87,89,91,91,90,90,87,86,85,86,86,86,86,86,85,82,77,70,58,43,26,12,3,0,0,0,0,0],"D":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,4,12,31,47,56,57,58,58,58,57,55,55,55,55,55,56,55,54,54,53,52,49,42,31,18,7,1,0,0,0,0,0]}},{"id":"castro","nombre":"Castro","lat":-42.472,"lon":-73.779,"parcial":false,"pob":31698,"vivo":true,"vel_lab":15.7,"vel_dom":17.5,"gana_dom":12,"cob400":95.2,"horas":12.5,"hasta":"19:00","buses_pico":12,"buses_10k":3.7,"pct_22":0,"valle":94,"normal":{"L":[0,0,0,0,0,0,0,0,0,0,0,0,0,3,8,11,12,12,11,11,11,11,12,11,12,11,11,11,11,10,11,11,11,11,11,10,10,9,6,4,3,1,1,0,0,0,0,0],"S":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,4,6,8,8,7,7,8,7,8,7,7,7,7,6,6,6,6,6,6,5,5,4,3,2,1,0,0,0,0,0,0,0],"D":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,4,4,5,5,5,5,4,4,5,5,5,5,4,5,4,4,4,3,2,1,0,0,0,0,0,0,0,0,0]}},{"id":"quellon","nombre":"Quellón","lat":-43.116,"lon":-73.618,"parcial":false,"pob":16869,"vivo":true,"vel_lab":17.7,"vel_dom":19.2,"gana_dom":8,"cob400":87.6,"horas":12.0,"hasta":"19:00","buses_pico":8,"buses_10k":4.6,"pct_22":0,"valle":86,"normal":{"L":[null,null,null,null,null,null,null,null,null,null,null,null,null,0,3,6,8,7,8,7,7,7,6,6,6,6,6,6,6,6,7,7,7,8,7,7,7,7,5,3,1,0,1,0,null,null,null,null],"S":[null,null,null,null,null,null,null,null,null,null,null,null,null,0,1,3,4,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,4,4,4,3,2,1,1,0,null,null,null,null,null],"D":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,1,2,4,4,4,0,1,3,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,2,1,0,1,null,null,null,null,null,null,null]}},{"id":"punta_arenas","nombre":"Punta Arenas","lat":-53.153,"lon":-70.923,"parcial":false,"pob":123648,"vivo":true,"vel_lab":18.1,"vel_dom":21.8,"gana_dom":20,"cob400":94.3,"horas":15.5,"hasta":"22:00","buses_pico":42,"buses_10k":3.4,"pct_22":46,"valle":78,"normal":{"L":[0,0,0,0,0,0,0,0,0,0,0,0,5,14,26,36,38,41,40,37,34,33,31,31,32,31,30,32,32,34,36,39,40,41,41,42,43,42,41,38,35,33,30,27,23,17,8,2],"S":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,10,17,21,22,23,23,24,24,24,24,25,25,26,25,23,22,23,24,27,27,28,27,27,26,26,26,26,24,21,16,9,3,0],"D":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,5,7,12,14,16,15,17,16,17,16,17,16,18,17,19,20,21,21,22,22,22,22,22,21,22,21,20,16,11,6,4,1,0]}}],"muestra":"marzo, mayo, junio y julio de 2026"};
+const NAC={"ciudades":[{"id":"iquique","nombre":"Iquique","lat":-20.254,"lon":-70.12,"grupo":"grande","pob":326596,"pob_total":326596,"excl":[],"comunas":["Iquique","Alto Hospicio"],"vivo":true,"lineas":16,"dias_l":8,"dias_d":4,"pulsos":1628184,"vel_lab":17.1,"vel_ic":0.3,"vel_dom":18.5,"gana_dom":9,"cob400":92.4,"horas":13.5,"hasta":"20:00","hasta20":"21:30","buses_pico":227,"buses_10k":6.9,"pct_22":11,"valle":93,"normal":{"L":[9,5,2,0,0,0,0,0,0,0,0,8,45,106,166,209,227,226,222,217,214,214,216,217,218,218,216,213,204,198,198,202,205,205,204,204,200,192,177,156,131,102,73,47,30,21,17,14],"S":[10,6,2,1,0,0,0,0,0,0,0,2,7,27,59,95,120,138,149,156,162,165,168,170,171,170,169,166,160,154,148,145,145,142,140,137,130,121,110,97,82,66,48,33,23,16,12,10],"D":[8,5,2,0,0,0,0,0,0,0,0,0,2,8,22,42,65,85,101,110,118,122,125,128,129,129,129,126,122,118,114,110,108,104,101,96,90,83,75,65,56,46,34,23,14,8,7,5]}},{"id":"tocopilla","nombre":"Tocopilla","lat":-22.09,"lon":-70.196,"grupo":"pequeno","pob":23765,"pob_total":23765,"excl":[],"comunas":["Tocopilla"],"vivo":true,"lineas":2,"dias_l":8,"dias_d":4,"pulsos":77004,"vel_lab":17.6,"vel_ic":0.5,"vel_dom":18.9,"gana_dom":8,"cob400":100.0,"horas":14.0,"hasta":"20:30","hasta20":"21:00","buses_pico":8,"buses_10k":3.2,"pct_22":0,"valle":92,"normal":{"L":[0,0,0,0,0,0,0,0,0,0,0,0,0,3,6,8,8,7,7,7,7,7,7,7,7,7,7,8,8,7,7,7,7,7,7,8,8,7,8,7,8,7,2,0,0,0,0,0],"S":[null,null,null,null,null,null,null,null,null,null,null,null,null,0,0,0,0,2,3,4,6,6,6,6,6,6,7,6,6,6,6,6,5,5,5,5,5,5,3,2,0,0,0,0,0,0,0,null],"D":[null,null,null,null,null,null,null,null,null,null,null,null,0,0,0,0,0,2,3,4,5,4,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,4,4,1,0,1,0,0,0,0,0,0]}},{"id":"calama","nombre":"Calama","lat":-22.455,"lon":-68.932,"grupo":"grande","pob":156882,"pob_total":156882,"excl":[],"comunas":["Calama"],"vivo":true,"lineas":6,"dias_l":8,"dias_d":4,"pulsos":593906,"vel_lab":13.0,"vel_ic":0.2,"vel_dom":13.9,"gana_dom":7,"cob400":93.4,"horas":12.5,"hasta":"19:30","hasta20":"20:30","buses_pico":95,"buses_10k":6.1,"pct_22":2,"valle":96,"normal":{"L":[0,0,0,0,0,0,0,0,0,0,0,0,2,12,46,71,88,98,97,94,92,93,93,94,92,92,91,91,89,90,91,92,92,92,92,90,85,79,71,59,42,24,12,5,2,1,1,0],"S":[0,0,0,1,0,0,0,0,0,0,0,0,0,1,2,3,13,29,46,63,71,73,72,72,72,71,69,69,69,70,71,71,72,72,70,69,67,61,48,28,15,10,6,4,3,1,1,1],"D":[1,1,0,0,0,0,0,0,0,0,0,0,0,1,2,3,12,25,40,53,58,57,57,57,57,56,55,54,55,57,58,59,59,57,57,56,49,35,23,14,8,6,5,4,2,1,1,0]}},{"id":"antofagasta","nombre":"Antofagasta","lat":-23.614,"lon":-70.389,"grupo":"grande","pob":388478,"pob_total":388478,"excl":[],"comunas":["Antofagasta"],"vivo":true,"lineas":13,"dias_l":8,"dias_d":4,"pulsos":3935795,"vel_lab":16.8,"vel_ic":0.2,"vel_dom":17.8,"gana_dom":6,"cob400":96.0,"horas":15.0,"hasta":"21:00","hasta20":"22:00","buses_pico":459,"buses_10k":11.8,"pct_22":25,"valle":98,"normal":{"L":[4,1,0,0,0,0,0,0,0,3,18,55,136,248,353,416,449,463,462,456,452,447,444,446,450,454,457,461,457,451,446,446,447,446,446,447,449,447,433,406,364,317,266,205,141,90,48,20],"S":[6,1,1,0,0,0,0,0,0,2,12,27,58,104,159,217,266,309,338,360,376,385,393,398,402,403,404,404,402,397,392,387,382,379,376,371,366,356,340,320,294,264,225,172,119,75,39,17],"D":[6,2,0,0,0,0,0,0,0,1,6,13,30,58,96,139,177,214,246,275,295,310,317,322,326,329,330,332,332,328,324,321,319,314,310,305,298,289,277,262,240,214,178,135,92,56,28,12]}},{"id":"copiapo","nombre":"Copiapó","lat":-27.376,"lon":-70.314,"grupo":"grande","pob":160462,"pob_total":160462,"excl":[],"comunas":["Copiapó"],"vivo":true,"lineas":12,"dias_l":8,"dias_d":4,"pulsos":598278,"vel_lab":15.3,"vel_ic":0.2,"vel_dom":17.3,"gana_dom":13,"cob400":91.1,"horas":15.0,"hasta":"21:30","hasta20":"22:30","buses_pico":69,"buses_10k":4.3,"pct_22":29,"valle":90,"normal":{"L":[2,0,0,0,0,0,0,0,0,0,0,1,14,32,48,60,68,70,67,63,60,58,58,59,62,66,69,71,69,62,58,57,59,62,65,67,69,67,65,61,56,51,44,36,25,15,8,3],"S":[2,1,0,0,0,0,0,0,0,0,0,0,0,0,10,22,32,38,41,42,43,46,48,48,50,50,51,52,52,50,48,46,45,44,44,44,44,43,41,40,38,37,31,23,12,4,2,0],"D":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,9,18,28,33,35,37,38,39,40,40,40,41,41,41,41,40,39,38,37,36,36,36,36,35,34,32,31,29,22,14,6,2,1,0]}},{"id":"la_serena","nombre":"La Serena","lat":-29.945,"lon":-71.276,"grupo":"parcial","pob":457215,"pob_total":457215,"excl":[],"comunas":["Coquimbo","La Serena"],"vivo":false,"lineas":2,"dias_l":8,"dias_d":4,"pulsos":295999,"vel_lab":15.6,"vel_ic":0.2,"vel_dom":19.0,"gana_dom":22,"cob400":32.4,"horas":16.0,"hasta":"22:00","hasta20":"23:00","buses_pico":35,"buses_10k":0.8,"pct_22":62,"valle":80,"normal":{"L":[0,0,0,0,0,0,0,0,0,0,0,5,12,22,28,31,32,32,32,28,27,27,27,28,28,28,28,29,28,29,28,28,28,29,30,31,31,34,35,35,31,28,27,29,26,17,9,3],"S":[1,0,0,0,0,0,0,0,0,0,0,1,4,9,15,21,22,24,24,25,25,26,26,26,27,28,28,28,28,28,26,24,22,20,20,21,20,21,20,21,20,21,21,20,16,10,6,2],"D":[0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,8,12,16,14,14,15,18,19,19,19,19,19,20,19,19,19,20,19,19,19,19,19,19,19,18,17,17,13,9,5,2,0,0]}},{"id":"valparaiso","nombre":"Gran Valparaíso","lat":-33.038,"lon":-71.512,"grupo":"grande","pob":944418,"pob_total":944418,"excl":[],"comunas":["Viña Del Mar","Valparaíso","Quilpué","Villa Alemana","Concón"],"vivo":true,"lineas":98,"dias_l":8,"dias_d":4,"pulsos":6722069,"vel_lab":18.9,"vel_ic":0.2,"vel_dom":21.0,"gana_dom":11,"cob400":89.7,"horas":14.0,"hasta":"20:00","hasta20":"21:00","buses_pico":974,"buses_10k":10.3,"pct_22":8,"valle":93,"normal":{"L":[4,3,3,2,2,2,2,2,2,2,35,110,296,551,772,905,972,975,960,928,913,907,910,918,922,926,927,924,903,879,864,866,876,885,887,886,864,819,739,631,506,386,267,168,97,49,20,9],"S":[5,4,3,2,2,2,2,2,2,2,16,42,109,206,308,395,468,524,573,606,635,654,670,682,687,693,694,690,677,662,638,621,609,598,586,569,544,510,465,411,352,287,214,140,84,42,18,9],"D":[5,4,3,2,2,2,2,2,2,2,10,19,45,80,137,202,270,322,370,404,431,453,472,482,491,495,495,490,480,467,455,445,437,430,420,405,386,360,329,291,245,193,138,81,42,21,9,5]}},{"id":"santiago","nombre":"Gran Santiago","lat":-33.481,"lon":-70.655,"grupo":"grande","pob":6161761,"pob_total":6351525,"excl":["Lampa","Padre Hurtado"],"comunas":["Puente Alto","Maipú","Santiago","La Florida","San Bernardo","Las Condes","Ñuñoa","Peñalolén","Pudahuel","Quilicura","Estación Central","La Pintana","El Bosque","Recoleta","San Miguel","Providencia","Renca","Quinta Normal","Cerro Navia","Macul","Conchalí","Independencia","La Granja","Lo Barnechea","La Cisterna","Huechuraba","San Joaquín","Pedro Aguirre Cerda","Lo Prado","La Reina","Lo Espejo","Vitacura","Cerrillos","San Ramón"],"vivo":false,"lineas":408,"dias_l":8,"dias_d":4,"pulsos":87175112,"vel_lab":16.0,"vel_ic":0.2,"vel_dom":19.0,"gana_dom":19,"cob400":96.8,"horas":16.5,"hasta":"22:00","hasta20":"23:30","buses_pico":5046,"buses_10k":8.2,"pct_22":48,"valle":72,"normal":{"L":[836,514,341,254,212,196,192,194,256,341,642,1572,2634,3542,4293,4874,5125,4967,4681,4307,3924,3657,3515,3496,3526,3563,3584,3605,3596,3596,3602,3682,3837,4054,4294,4559,4796,4891,4805,4594,4280,3887,3425,2990,2605,2295,1861,1370],"S":[883,549,362,270,224,205,198,197,247,282,419,917,1412,1785,2051,2239,2345,2424,2493,2538,2556,2566,2602,2652,2707,2742,2754,2750,2745,2730,2685,2625,2590,2560,2551,2544,2543,2524,2492,2429,2320,2208,2089,1942,1785,1606,1333,1042],"D":[726,470,333,254,212,196,189,187,230,253,352,745,1116,1380,1537,1668,1743,1803,1863,1932,1989,2052,2102,2137,2166,2196,2208,2209,2184,2149,2111,2098,2109,2118,2124,2128,2145,2146,2122,2084,2046,1977,1906,1753,1603,1432,1233,993]}},{"id":"rancagua","nombre":"Rancagua","lat":-34.167,"lon":-70.721,"grupo":"grande","pob":244771,"pob_total":304044,"excl":["Machalí"],"comunas":["Rancagua"],"vivo":true,"lineas":25,"dias_l":8,"dias_d":4,"pulsos":887979,"vel_lab":14.9,"vel_ic":0.1,"vel_dom":18.0,"gana_dom":21,"cob400":89.2,"horas":13.0,"hasta":"19:30","hasta20":"20:30","buses_pico":125,"buses_10k":5.1,"pct_22":1,"valle":91,"normal":{"L":[0,0,0,0,0,0,0,0,0,0,0,2,14,49,97,121,126,124,118,115,116,119,119,122,121,120,116,113,109,105,104,107,110,111,110,107,102,96,84,68,51,34,16,6,2,0,0,0],"S":[0,0,0,0,0,0,0,0,0,0,0,0,2,10,27,37,42,48,53,59,61,65,67,67,67,66,65,62,57,55,53,53,52,51,48,45,42,38,34,30,24,20,10,3,1,0,0,0],"D":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,5,18,26,29,30,34,39,40,40,40,40,38,38,35,35,34,33,32,31,28,24,22,21,21,19,15,13,6,2,0,0,0,0]}},{"id":"talca","nombre":"Talca","lat":-35.434,"lon":-71.653,"grupo":"grande","pob":265763,"pob_total":265763,"excl":[],"comunas":["Talca","Maule"],"vivo":true,"lineas":10,"dias_l":8,"dias_d":4,"pulsos":653021,"vel_lab":15.5,"vel_ic":0.1,"vel_dom":18.9,"gana_dom":22,"cob400":86.1,"horas":14.0,"hasta":"20:30","hasta20":"21:00","buses_pico":97,"buses_10k":3.6,"pct_22":0,"valle":89,"normal":{"L":[0,0,0,0,0,0,0,0,0,0,0,0,0,12,66,95,98,95,89,85,84,85,85,88,89,91,89,90,87,84,82,84,86,88,89,92,94,94,92,86,76,63,30,7,1,0,0,0],"S":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,10,30,45,45,47,47,49,49,50,50,51,52,52,50,48,47,45,45,45,45,45,45,45,43,39,27,12,1,0,0,0,0,0],"D":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,13,25,30,37,38,38,38,40,40,40,41,41,39,38,37,37,36,36,36,36,35,35,33,24,7,1,0,0,0,0,0,0]}},{"id":"chillan","nombre":"Chillán","lat":-36.586,"lon":-72.077,"grupo":"grande","pob":194344,"pob_total":233129,"excl":["San Carlos","San Nicolás"],"comunas":["Chillán","Chillán Viejo"],"vivo":true,"lineas":10,"dias_l":8,"dias_d":4,"pulsos":1191219,"vel_lab":16.3,"vel_ic":0.1,"vel_dom":18.2,"gana_dom":11,"cob400":95.3,"horas":13.0,"hasta":"20:00","hasta20":"21:00","buses_pico":163,"buses_10k":8.4,"pct_22":1,"valle":94,"normal":{"L":[0,0,0,0,0,0,0,0,0,0,0,2,11,35,75,118,147,162,164,162,161,161,160,159,157,153,152,151,148,146,147,150,154,157,159,160,162,160,151,134,107,73,37,14,3,0,0,0],"S":[0,0,0,0,0,0,0,0,0,0,0,0,1,2,11,27,51,74,92,103,108,108,110,108,108,105,102,99,97,96,98,99,101,102,102,102,101,98,92,80,62,40,19,6,1,0,0,0],"D":[0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,7,18,34,49,63,71,73,74,74,72,71,69,67,65,64,65,66,66,67,67,68,67,66,60,51,38,24,10,3,1,0,0,0]}},{"id":"gccp","nombre":"Gran Concepción","lat":-36.823,"lon":-73.065,"grupo":"grande","pob":821519,"pob_total":861129,"excl":["Lota"],"comunas":["Concepción","San Pedro De La Paz","Talcahuano","Hualpén","Chiguayante","Tomé","Penco","Hualqui","Santa Juana"],"vivo":true,"lineas":40,"dias_l":8,"dias_d":4,"pulsos":8688931,"vel_lab":20.6,"vel_ic":0.2,"vel_dom":23.4,"gana_dom":13,"cob400":92.2,"horas":14.5,"hasta":"20:30","hasta20":"22:00","buses_pico":1039,"buses_10k":13.6,"pct_22":18,"valle":96,"normal":{"L":[4,1,0,0,0,0,0,0,0,1,17,87,275,535,780,936,1025,1052,1042,1007,991,988,991,998,1004,1009,1010,1008,994,974,963,970,980,994,998,1002,990,960,895,799,674,550,450,342,239,140,64,21],"S":[6,2,0,0,0,0,0,0,0,0,4,33,102,205,328,438,520,569,604,628,649,666,679,692,700,706,704,699,686,671,656,645,635,624,612,597,574,542,504,456,406,344,272,199,130,74,37,15],"D":[5,2,0,0,0,0,0,0,0,0,1,14,45,96,167,240,312,363,402,432,459,469,476,479,484,486,484,480,477,468,460,452,444,441,434,424,410,386,362,332,303,263,211,153,94,55,26,10]}},{"id":"temuco","nombre":"Temuco","lat":-38.741,"lon":-72.623,"grupo":"grande","pob":312921,"pob_total":312921,"excl":[],"comunas":["Temuco","Padre Las Casas"],"vivo":true,"lineas":12,"dias_l":8,"dias_d":4,"pulsos":6160064,"vel_lab":18.6,"vel_ic":0.1,"vel_dom":20.6,"gana_dom":11,"cob400":94.9,"horas":14.5,"hasta":"20:30","hasta20":"21:30","buses_pico":591,"buses_10k":18.9,"pct_22":14,"valle":96,"normal":{"L":[25,24,23,23,23,22,22,22,22,22,24,53,181,367,476,568,590,591,584,575,572,569,570,572,572,571,570,570,569,565,564,572,576,577,577,578,574,562,536,494,435,354,266,181,108,58,35,28],"S":[17,15,15,15,14,14,14,14,14,14,14,16,32,90,160,233,288,318,329,338,343,346,349,350,353,352,351,349,346,344,341,340,340,339,337,333,328,316,300,259,213,159,114,75,49,30,21,18],"D":[13,12,12,12,11,11,11,11,11,11,11,11,18,45,85,125,164,198,227,241,245,248,250,250,251,251,249,249,248,247,246,245,245,245,243,243,239,234,221,190,149,110,78,50,32,22,16,14]}},{"id":"villarrica","nombre":"Villarrica","lat":-39.31,"lon":-72.223,"grupo":"pequeno","pob":37671,"pob_total":37671,"excl":[],"comunas":["Villarrica"],"vivo":true,"lineas":2,"dias_l":8,"dias_d":4,"pulsos":125339,"vel_lab":17.6,"vel_ic":0.5,"vel_dom":20.1,"gana_dom":15,"cob400":90.6,"horas":14.0,"hasta":"20:30","hasta20":"21:00","buses_pico":15,"buses_10k":4.0,"pct_22":3,"valle":81,"normal":{"L":[0,0,0,0,0,0,0,0,0,0,0,0,0,4,12,15,15,15,15,14,13,12,12,12,12,12,13,13,13,12,11,11,12,12,14,14,15,15,14,13,11,8,5,2,1,0,0,0],"S":[0,0,0,null,null,null,0,null,0,null,null,null,null,0,3,5,7,8,9,8,8,8,8,8,8,8,9,9,8,8,8,8,8,8,8,8,8,8,9,8,7,4,2,1,0,0,0,0],"D":[0,null,null,null,0,null,0,0,null,0,0,0,0,0,2,1,2,3,5,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,7,6,7,5,5,3,2,1,1,0,0,0,null,0]}},{"id":"valdivia","nombre":"Valdivia","lat":-39.834,"lon":-73.23,"grupo":"grande","pob":149032,"pob_total":149032,"excl":[],"comunas":["Valdivia"],"vivo":true,"lineas":9,"dias_l":8,"dias_d":4,"pulsos":1305693,"vel_lab":18.4,"vel_ic":0.1,"vel_dom":20.1,"gana_dom":9,"cob400":86.2,"horas":14.0,"hasta":"20:30","hasta20":"21:00","buses_pico":178,"buses_10k":12.0,"pct_22":3,"valle":96,"normal":{"L":[0,0,0,0,0,0,0,0,0,0,0,1,12,48,96,142,173,183,177,174,174,174,175,175,174,173,171,171,168,168,169,171,174,175,174,177,177,176,171,160,140,112,70,33,10,2,0,0],"S":[0,0,0,0,0,0,0,0,0,0,0,0,1,5,26,56,80,96,105,108,112,115,120,122,122,122,121,120,118,117,117,116,116,116,116,116,115,114,110,103,88,69,43,19,6,2,1,1],"D":[0,0,0,0,0,0,0,0,0,0,0,0,0,1,8,20,35,53,70,84,91,95,97,98,99,100,99,98,97,96,96,96,96,96,96,96,95,92,86,75,59,43,24,10,2,1,0,0]}},{"id":"osorno","nombre":"Osorno","lat":-40.575,"lon":-73.152,"grupo":"grande","pob":145744,"pob_total":145744,"excl":[],"comunas":["Osorno"],"vivo":true,"lineas":6,"dias_l":8,"dias_d":4,"pulsos":819225,"vel_lab":15.4,"vel_ic":0.2,"vel_dom":16.9,"gana_dom":10,"cob400":92.8,"horas":13.0,"hasta":"19:30","hasta20":"20:30","buses_pico":128,"buses_10k":8.8,"pct_22":0,"valle":94,"normal":{"L":[0,0,0,0,0,0,0,0,0,0,2,3,7,37,79,108,126,130,126,121,122,123,124,123,122,121,118,117,116,118,120,123,123,121,118,117,111,103,91,73,51,27,9,2,0,0,0,0],"S":[0,0,0,0,0,0,0,0,0,0,0,0,1,2,8,22,46,65,76,83,87,89,91,91,90,90,87,86,85,86,86,86,86,86,85,82,77,70,58,43,26,12,3,0,0,0,0,0],"D":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,4,12,31,47,56,57,58,58,58,57,55,55,55,55,55,56,55,54,54,53,52,49,42,31,18,7,1,0,0,0,0,0]}},{"id":"castro","nombre":"Castro","lat":-42.472,"lon":-73.779,"grupo":"pequeno","pob":31698,"pob_total":31698,"excl":[],"comunas":["Castro"],"vivo":true,"lineas":3,"dias_l":6,"dias_d":3,"pulsos":55973,"vel_lab":15.7,"vel_ic":0.6,"vel_dom":17.5,"gana_dom":12,"cob400":95.2,"horas":12.5,"hasta":"19:00","hasta20":"20:00","buses_pico":12,"buses_10k":3.7,"pct_22":0,"valle":94,"normal":{"L":[0,0,0,0,0,0,0,0,0,0,0,0,0,3,8,11,12,12,11,11,11,11,12,11,12,11,11,11,11,10,11,11,11,11,11,10,10,9,6,4,3,1,1,0,0,0,0,0],"S":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,4,6,8,8,7,7,8,7,8,7,7,7,7,6,6,6,6,6,6,5,5,4,3,2,1,0,0,0,0,0,0,0],"D":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,4,4,5,5,5,5,4,4,5,5,5,5,4,5,4,4,4,3,2,1,0,0,0,0,0,0,0,0,0]}},{"id":"quellon","nombre":"Quellón","lat":-43.116,"lon":-73.618,"grupo":"pequeno","pob":16869,"pob_total":16869,"excl":[],"comunas":["Quellón"],"vivo":true,"lineas":1,"dias_l":8,"dias_d":4,"pulsos":51914,"vel_lab":17.7,"vel_ic":0.3,"vel_dom":19.2,"gana_dom":8,"cob400":87.6,"horas":12.0,"hasta":"19:00","hasta20":"19:30","buses_pico":8,"buses_10k":4.6,"pct_22":0,"valle":86,"normal":{"L":[null,null,null,null,null,null,null,null,null,null,null,null,null,0,3,6,8,7,8,7,7,7,6,6,6,6,6,6,6,6,7,7,7,8,7,7,7,7,5,3,1,0,1,0,null,null,null,null],"S":[null,null,null,null,null,null,null,null,null,null,null,null,null,0,1,3,4,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,4,4,4,3,2,1,1,0,null,null,null,null,null],"D":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,1,2,4,4,4,0,1,3,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,2,1,0,1,null,null,null,null,null,null,null]}},{"id":"punta_arenas","nombre":"Punta Arenas","lat":-53.153,"lon":-70.923,"grupo":"grande","pob":123648,"pob_total":123648,"excl":[],"comunas":["Punta Arenas"],"vivo":true,"lineas":8,"dias_l":8,"dias_d":4,"pulsos":361259,"vel_lab":18.1,"vel_ic":0.4,"vel_dom":21.8,"gana_dom":20,"cob400":94.3,"horas":15.5,"hasta":"22:00","hasta20":"22:30","buses_pico":42,"buses_10k":3.4,"pct_22":46,"valle":78,"normal":{"L":[0,0,0,0,0,0,0,0,0,0,0,0,5,14,26,36,38,41,40,37,34,33,31,31,32,31,30,32,32,34,36,39,40,41,41,42,43,42,41,38,35,33,30,27,23,17,8,2],"S":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,10,17,21,22,23,23,24,24,24,24,25,25,26,25,23,22,23,24,27,27,28,27,27,26,26,26,26,24,21,16,9,3,0],"D":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,5,7,12,14,16,15,17,16,17,16,17,16,18,17,19,20,21,21,22,22,22,22,22,21,22,21,20,16,11,6,4,1,0]}}],"muestra":"marzo, mayo, junio y julio de 2026"}, GRAF={"tipo":"vistas","id":"porhora","inicial":"forma","vistas":[{"id":"forma","etiqueta":"Forma del día","grafico":{"tipo":"lineas","id":"forma","titulo":"Buses en ruta durante un día laboral","unidad":"% de la punta","dec":0,"alto":400,"ancho":1300,"x":{"min":5,"max":23,"paso":2,"etiqueta":"Hora del día"},"y":{"min":0,"max":110,"ticks":[0,25,50,75,100]},"series":[{"id":"santiago","nombre":"Gran Santiago","color":"--gi-s1","grosor":2.2,"conmutable":true,"puntos":[[5,21.9],[6,61.2],[7,90.8],[8,100.0],[9,89.1],[10,75.1],[11,69.5],[12,70.2],[13,71.2],[14,71.3],[15,72.2],[16,78.2],[17,87.7],[18,96.0],[19,93.1],[20,80.9],[21,63.6],[22,48.5],[23,32.0]]},{"id":"valparaiso","nombre":"Gran Valparaíso","color":"--gi-s3","grosor":2.2,"conmutable":true,"puntos":[[5,7.4],[6,43.5],[7,86.1],[8,100.0],[9,96.9],[10,93.5],[11,93.9],[12,94.9],[13,95.0],[14,91.5],[15,88.8],[16,90.4],[17,91.0],[18,86.4],[19,70.4],[20,45.8],[21,22.4],[22,7.5],[23,1.5]]},{"id":"gccp","nombre":"Gran Concepción","color":"--gi-s2","grosor":2.2,"conmutable":true,"puntos":[[5,5.0],[6,39.0],[7,82.6],[8,100.0],[9,98.6],[10,95.3],[11,95.8],[12,96.9],[13,97.1],[14,94.8],[15,93.1],[16,95.0],[17,96.3],[18,93.9],[19,81.6],[20,58.9],[21,38.1],[22,18.3],[23,4.1]]},{"id":"temuco","nombre":"Temuco","color":"--gi-s6","grosor":2.2,"conmutable":true,"puntos":[[5,6.5],[6,46.4],[7,88.4],[8,100.0],[9,98.1],[10,96.6],[11,96.7],[12,96.7],[13,96.5],[14,96.0],[15,96.2],[16,97.6],[17,97.8],[18,96.1],[19,87.2],[20,66.8],[21,37.8],[22,14.1],[23,5.3]]},{"id":"rancagua","nombre":"Rancagua","color":"--gi-s5","grosor":2.2,"conmutable":true,"puntos":[[5,0.6],[6,25.3],[7,87.4],[8,100.0],[9,93.4],[10,93.8],[11,96.4],[12,96.2],[13,91.8],[14,85.6],[15,84.6],[16,88.2],[17,86.7],[18,79.2],[19,61.2],[20,34.3],[21,9.1],[22,0.7],[23,0.0]]},{"id":"calama","nombre":"Calama","color":"--gi-s4","grosor":2.2,"conmutable":true,"puntos":[[5,0.4],[6,6.8],[7,61.6],[8,97.7],[9,100.0],[10,96.8],[11,97.7],[12,96.4],[13,95.3],[14,94.1],[15,95.6],[16,96.4],[17,95.3],[18,86.2],[19,68.1],[20,34.5],[21,8.8],[22,1.6],[23,0.6]]}],"hover":{"normal":"todas","lupa":"cercanas"},"nota":"Promedio histórico de días laborales, cada ciudad respecto de su propia hora punta. Muestra la forma del día, no la cantidad de buses."}},{"id":"velhora","etiqueta":"Velocidad por hora","grafico":{"tipo":"lineas","id":"velhora","titulo":"Velocidad de los buses por hora, día laboral","unidad":"km/h","dec":1,"alto":400,"ancho":1300,"x":{"min":6,"max":22,"paso":2,"etiqueta":"Hora del día"},"y":{"min":10,"max":30,"ticks":[10,15,20,25,30]},"series":[{"id":"santiago","nombre":"Gran Santiago","color":"--gi-s1","grosor":2.2,"conmutable":true,"puntos":[[6,19.0],[7,14.5],[8,14.4],[9,16.8],[10,17.4],[11,17.0],[12,16.6],[13,16.3],[14,16.8],[15,16.2],[16,15.8],[17,14.8],[18,13.9],[19,15.8],[20,18.1],[21,19.5],[22,20.8]]},{"id":"valparaiso","nombre":"Gran Valparaíso","color":"--gi-s3","grosor":2.2,"conmutable":true,"puntos":[[6,22.2],[7,18.1],[8,18.7],[9,20.7],[10,20.1],[11,19.5],[12,19.2],[13,18.7],[14,19.5],[15,18.8],[16,18.3],[17,17.2],[18,16.7],[19,19.1],[20,20.3],[21,21.5],[22,23.1]]},{"id":"gccp","nombre":"Gran Concepción","color":"--gi-s2","grosor":2.2,"conmutable":true,"puntos":[[6,23.2],[7,19.6],[8,20.4],[9,22.4],[10,22.0],[11,21.6],[12,21.0],[13,20.6],[14,21.0],[15,20.5],[16,20.3],[17,18.8],[18,18.2],[19,20.6],[20,22.1],[21,23.8],[22,26.1]]},{"id":"temuco","nombre":"Temuco","color":"--gi-s6","grosor":2.2,"conmutable":true,"puntos":[[6,20.3],[7,17.2],[8,18.4],[9,19.3],[10,19.0],[11,18.8],[12,18.6],[13,18.5],[14,18.7],[15,18.3],[16,18.3],[17,18.0],[18,17.7],[19,19.1],[20,20.2],[21,21.6],[22,16.4]]},{"id":"rancagua","nombre":"Rancagua","color":"--gi-s5","grosor":2.2,"conmutable":true,"puntos":[[6,16.1],[7,12.6],[8,13.9],[9,16.1],[10,15.9],[11,15.6],[12,15.1],[13,14.4],[14,15.2],[15,14.8],[16,14.8],[17,13.7],[18,13.0],[19,15.1],[20,17.7],[21,18.3],[22,18.5]]},{"id":"calama","nombre":"Calama","color":"--gi-s4","grosor":2.2,"conmutable":true,"puntos":[[6,11.1],[7,12.5],[8,13.2],[9,13.9],[10,13.8],[11,13.4],[12,13.0],[13,12.7],[14,13.0],[15,12.7],[16,12.7],[17,12.2],[18,12.2],[19,12.9],[20,13.1],[21,14.1],[22,13.8]]}],"hover":{"normal":"todas","lupa":"cercanas"},"nota":"Velocidad física con un pulso por bus por minuto, sin terminales. Muestra de 8 días laborales de 2026."}},{"id":"dom","etiqueta":"Laboral y domingo","grafico":{"tipo":"dispersion","id":"dom","titulo":"Velocidad en día laboral y aumento en domingo","unidad":"","dec":1,"alto":420,"ancho":1300,"x":{"etiqueta":"Velocidad en día laboral (km/h)","min":12,"max":22,"ticks":[12,14,16,18,20,22]},"y":{"etiqueta":"Aumento en domingo (%)","min":0,"max":25,"ticks":[0,5,10,15,20,25]},"color":"--gi-s3","puntos":[{"x":17.1,"y":9,"nombre":"Iquique"},{"x":13.0,"y":7,"nombre":"Calama"},{"x":16.8,"y":6,"nombre":"Antofagasta"},{"x":15.3,"y":13,"nombre":"Copiapó"},{"x":18.9,"y":11,"nombre":"Gran Valparaíso"},{"x":16.0,"y":19,"nombre":"Gran Santiago"},{"x":14.9,"y":21,"nombre":"Rancagua"},{"x":15.5,"y":22,"nombre":"Talca"},{"x":16.3,"y":11,"nombre":"Chillán"},{"x":20.6,"y":13,"nombre":"Gran Concepción"},{"x":18.6,"y":11,"nombre":"Temuco"},{"x":18.4,"y":9,"nombre":"Valdivia"},{"x":15.4,"y":10,"nombre":"Osorno"},{"x":18.1,"y":20,"nombre":"Punta Arenas"}],"radio":5,"opacidad":0.9,"nota":"14 sistemas con 5 líneas o más. Un aumento alto sugiere congestión en día laboral; es un indicio, no una medición de ella. Calculado con 4 domingos."}}]};
 const C=NAC.ciudades, porId=Object.fromEntries(C.map(c=>[c.id,c]));
 const fmt=(x,d=0)=>x==null?"—":x.toLocaleString("es-CL",{minimumFractionDigits:d,maximumFractionDigits:d});
 const css=k=>getComputedStyle(document.documentElement).getPropertyValue(k).trim();
-let vivo=null, indicador="vivo", sel=null;
+const $=i=>document.getElementById(i);
+let vivo=null, indicador="vel_lab", sel=null, grafListo=false;
 const IND={
- vivo:{t:"Buses en ruta ahora",e:"Buses en servicio fuera de terminal, en la última captura de cada ciudad.",u:"buses",d:0,get:c=>vivoDe(c)?.buses,tam:true},
- vel_lab:{t:"Velocidad en día laboral",e:"Velocidad de los buses entre 07:00 y 21:00.",u:"km/h",d:1,get:c=>c.vel_lab},
- gana_dom:{t:"Aumento de velocidad en domingo",e:"Cuánto más rápido operan los buses en domingo que en día laboral.",u:"%",d:0,get:c=>c.gana_dom},
- buses_10k:{t:"Buses por 10.000 habitantes",e:"Buses en ruta en la hora punta, por población de la ciudad.",u:"",d:1,get:c=>c.buses_10k},
- cob400:{t:"Cobertura a 400 metros",e:"Población a 400 metros o menos de un paradero.",u:"%",d:1,get:c=>c.cob400},
- horas:{t:"Horas de servicio",e:"Horas de un día laboral con al menos la mitad de los buses de punta.",u:"h",d:1,get:c=>c.horas},
- valle:{t:"Oferta en valle",e:"Buses entre 10:00 y 16:00 como porcentaje de la hora punta.",u:"%",d:0,get:c=>c.valle}
+ vel_lab:{b:"Velocidad",t:"Velocidad en día laboral",e:"Velocidad de los buses entre 07:00 y 21:00.",u:" km/h",d:1,get:c=>c.vel_lab,cortes:[15,17,19]},
+ gana_dom:{b:"Aumento en domingo",t:"Aumento de velocidad en domingo",e:"Cuánto más rápido operan los buses en domingo. Es un indicio de congestión, no una medición de ella.",u:" %",d:0,get:c=>c.gana_dom,cortes:[10,15,20]},
+ buses_10k:{b:"Buses por habitante",t:"Buses en punta por 10.000 habitantes",e:"Sólo buses en ruta, sin plazas ni otros modos como Metro, tren o colectivos.",u:"",d:1,get:c=>c.buses_10k,cortes:[5,8,12]},
+ cob400:{b:"Cobertura",t:"Cobertura a 400 metros",e:"Población a 400 metros o menos de un paradero. No dice cuánto servicio pasa por él.",u:" %",d:1,get:c=>c.cob400,cortes:[88,92,95]},
+ horas:{b:"Horas de servicio",t:"Horas con la mitad de los buses de punta",e:"Mide la forma del día respecto de la punta de cada ciudad, no el horario completo.",u:" h",d:1,get:c=>c.horas,cortes:[13,14,15]},
+ valle:{b:"Buses en valle",t:"Buses en valle sobre la punta",e:"Entre 10:00 y 16:00. Indica cuán plana es la oferta; un valor alto no significa mejor servicio.",u:" %",d:0,get:c=>c.valle,cortes:[80,90,95]},
+ vivo:{b:"En vivo",t:"Buses en ruta ahora",e:"Buses en servicio fuera de terminal, en la última captura de cada ciudad.",u:"",d:0,get:c=>{const v=vivoDe(c);return reciente(v)?v.buses:null},tam:true}
 };
-function vivoDe(c){const v=vivo&&vivo.ciudades[c.id];return v||null}
-function edadMin(v){if(!v||!v.snapshot)return null;return (Date.now()-new Date(v.snapshot).getTime())/60000}
-const reciente=v=>{const e=edadMin(v);return e!=null&&e<=75};
+function vivoDe(c){return (vivo&&vivo.ciudades[c.id])||null}
+const reciente=v=>{if(!v||!v.snapshot)return false;const e=(Date.now()-new Date(v.snapshot).getTime())/6e4;return e<=75};
+const horaDe=s=>new Date(s).toLocaleTimeString("es-CL",{hour:"2-digit",minute:"2-digit",hourCycle:"h23",timeZone:"America/Santiago"});
 
 /* mapa */
-const map=L.map("mapa",{zoomControl:true,attributionControl:true,preferCanvas:false,scrollWheelZoom:false}).setView([-37,-71.5],4);
-map.on("focus",()=>map.scrollWheelZoom.enable());map.on("blur",()=>map.scrollWheelZoom.disable());
+const map=L.map("mapa",{zoomSnap:.25,zoomDelta:.5,scrollWheelZoom:false,dragging:!L.Browser.mobile,tap:!L.Browser.mobile,minZoom:3,maxZoom:14}).setView([-37,-71.5],4);
+map.attributionControl.setPrefix(false);
 const ESRI="https://server.arcgisonline.com/ArcGIS/rest/services/";
 const tl=(p,o={})=>L.tileLayer(ESRI+p+"/MapServer/tile/{z}/{y}/{x}",Object.assign({maxNativeZoom:16,maxZoom:18,attribution:"Esri, OpenStreetMap"},o));
-const capas={claro:L.layerGroup([tl("Canvas/World_Light_Gray_Base"),tl("Canvas/World_Light_Gray_Reference")]),
-              oscuro:L.layerGroup([tl("Canvas/World_Dark_Gray_Base"),tl("Canvas/World_Dark_Gray_Reference")]),
-              sat:L.layerGroup([tl("World_Imagery",{attribution:"Esri"}),tl("Reference/World_Boundaries_and_Places",{attribution:"Esri"})])};
+const capas={claro:L.layerGroup([tl("Canvas/World_Light_Gray_Base"),tl("Canvas/World_Light_Gray_Reference",{minZoom:6})]),
+              oscuro:L.layerGroup([tl("Canvas/World_Dark_Gray_Base"),tl("Canvas/World_Dark_Gray_Reference",{minZoom:6})]),
+              sat:L.layerGroup([tl("World_Imagery",{attribution:"Esri"}),tl("Reference/World_Boundaries_and_Places",{attribution:"Esri",minZoom:6})])};
 let fondo="base",capaAct=null;
-function ponerFondo(){const oscuro=document.documentElement.getAttribute("data-theme")==="dark";const n=fondo==="sat"?capas.sat:(oscuro?capas.oscuro:capas.claro);if(capaAct===n)return;if(capaAct)map.removeLayer(capaAct);n.addTo(map);capaAct=n;n.eachLayer(l=>l.bringToBack&&l.bringToBack())}
-const marcas={};
-C.forEach(c=>{const m=L.circleMarker([c.lat,c.lon],{radius:7,weight:1.5,fillOpacity:.85});m.on("click",()=>elegir(c.id,true));m.bindTooltip("",{direction:"top"});m.addTo(map);marcas[c.id]=m});
-map.fitBounds(L.latLngBounds(C.map(c=>[c.lat,c.lon])).pad(.08));
-function clases(vals){const s=[...vals].sort((a,b)=>a-b);const q=f=>s[Math.min(s.length-1,Math.floor(f*s.length))];return [q(.2),q(.4),q(.6),q(.8)]}
-function colorDe(x,cor){const i=cor.filter(k=>x>=k).length;return css("--seq-"+(i+1))}
+function ponerFondo(){const oscuro=document.documentElement.getAttribute("data-theme")==="dark";const n=fondo==="sat"?capas.sat:(oscuro?capas.oscuro:capas.claro);$("mapa").classList.toggle("satel",fondo==="sat");if(capaAct===n)return;if(capaAct)map.removeLayer(capaAct);n.addTo(map);capaAct=n}
+const ANCLA={iquique:"right",antofagasta:"left",copiapo:"left",valparaiso:"left",santiago:"right",gccp:"left",temuco:"right",punta_arenas:"right"};
+const LADO={tocopilla:"left",calama:"right",la_serena:"left",rancagua:"right",talca:"right",chillan:"right",villarrica:"right",valdivia:"left",osorno:"left",castro:"left",quellon:"right"};
+const marcas={},rotulos={};
+C.forEach(c=>{const m=L.circleMarker([c.lat,c.lon],{radius:7,weight:1,fillOpacity:.9});
+  m.on("click",()=>elegir(c.id));m.bindTooltip("",{direction:"top",offset:[0,-6]});m.addTo(map);marcas[c.id]=m;
+  rotulos[c.id]=L.tooltip({permanent:true,direction:ANCLA[c.id]||LADO[c.id]||"right",className:"lbl",offset:[(ANCLA[c.id]||LADO[c.id])==="left"?-9:9,0],interactive:false}).setLatLng([c.lat,c.lon]).setContent(c.nombre.replace("Gran ",""))});
+const ZONAS={chile:[[-17.5,-76],[-54,-66]],norte:[[-19.5,-72.5],[-28.5,-67.5]],centro:[[-32.2,-73.2],[-37.6,-69.6]],sur:[[-36.4,-74.5],[-43.8,-71]]};
+function verZona(z){map.fitBounds(ZONAS[z],{padding:[8,8]});[...$("zonas").children].forEach(b=>b.classList.toggle("on",b.dataset.z===z))}
+function rotularZoom(){const z=map.getZoom();C.forEach(c=>{const ver=ANCLA[c.id]?true:z>=5.5;const r=rotulos[c.id];if(ver&&!map.hasLayer(r))r.addTo(map);if(!ver&&map.hasLayer(r))map.removeLayer(r)})}
+map.on("zoomend",rotularZoom);
+const clase=(x,c)=>c.filter(k=>x>=k).length;
+const colorDe=(x,c)=>css("--seq-"+(clase(x,c)+1));
+function rangoTxt(i,c,u){const n=c.length;if(i===0)return "Menos de "+fmt(c[0],0)+u;if(i===n)return fmt(c[n-1],0)+u+" o más";return fmt(c[i-1],0)+" a menos de "+fmt(c[i],0)+u}
+const Rmax=()=>window.innerWidth<620?15:20;
 function pintar(){
-  const I=IND[indicador];const comp=C.filter(c=>!c.parcial&&I.get(c)!=null);const vals=comp.map(I.get);
-  const ley=document.getElementById("leyenda");
+  const I=IND[indicador],comp=C.filter(c=>c.grupo!=="parcial"&&I.get(c)!=null),ley=$("leyenda");
+  $("mapDesc").textContent=I.e;
   if(I.tam){
-    const mx=Math.max(1,...vals);
-    C.forEach(c=>{const m=marcas[c.id],x=I.get(c),ok=x!=null&&reciente(vivoDe(c));
-      if(!c.vivo||!ok){m.setStyle({radius:4,fillColor:css("--ink-lo"),color:css("--marca-borde"),fillOpacity:.6})}
-      else{m.setStyle({radius:Math.max(4,20*Math.sqrt(x/mx)),fillColor:css("--marca"),color:css("--marca-borde"),fillOpacity:.72})}});
-    /* El diámetro de la leyenda es el mismo del mapa: 2 × 20 × √(x/máximo). */
-    const dia=x=>Math.round(40*Math.sqrt(x/mx)),r=[Math.round(mx),Math.round(mx/4)];
-    ley.innerHTML=`<b>Buses en ruta ahora</b><div class="i"><s style="background:var(--marca);width:${dia(r[1])}px;height:${dia(r[1])}px"></s>${fmt(r[1])}</div><div class="i"><s style="background:var(--marca);width:${dia(r[0])}px;height:${dia(r[0])}px"></s>${fmt(r[0])}</div><div class="i"><s style="background:var(--ink-lo);width:8px;height:8px"></s>Sin dato en vivo</div>`;
+    const vals=comp.map(I.get),mx=Math.max(1,...vals),R=Rmax();
+    C.forEach(c=>{const m=marcas[c.id],x=I.get(c);if(x==null){m.setStyle({radius:4,fillOpacity:0,color:css("--nulo"),weight:1.5})}else{m.setStyle({radius:R*Math.sqrt(x/mx),fillColor:css("--seq-3"),color:css("--borde-marca"),weight:.8,fillOpacity:.72})}});
+    if(vals.length){const d=x=>Math.max(3,Math.round(2*R*Math.sqrt(x/mx)));ley.innerHTML=`<b>Buses en ruta ahora</b>`+[10,100,Math.round(mx)].filter((x,i,a)=>x<=mx&&a.indexOf(x)===i).map(x=>`<div class="i"><s style="background:var(--seq-3);width:${d(x)}px;height:${d(x)}px"></s>${fmt(x)}</div>`).join("")+`<div class="i"><s class="ring"></s>Sin dato en vivo</div>`}
+    else ley.innerHTML=`<b>Sin dato en vivo</b><div class="i"><s class="ring"></s>La captura se detiene de 01:00 a 05:00</div>`;
   }else{
-    const cor=clases(vals);
-    C.forEach(c=>{const m=marcas[c.id],x=I.get(c);if(c.parcial||x==null){m.setStyle({radius:5,fillColor:css("--ink-lo"),color:css("--marca-borde"),fillOpacity:.6})}else{m.setStyle({radius:9,fillColor:colorDe(x,cor),color:css("--marca-borde"),fillOpacity:fondo==="sat"?.8:.92})}});
-    const mn=Math.min(...vals),mx=Math.max(...vals),br=[mn,...cor,mx];
-    ley.innerHTML=`<b>${I.t}${I.u?" ("+I.u+")":""}</b>`+[0,1,2,3,4].map(i=>`<div class="i"><s style="background:var(--seq-${i+1})"></s>${fmt(br[i],I.d)} a ${fmt(br[i+1],I.d)}</div>`).join("")+`<div class="i"><s style="background:var(--ink-lo);width:8px;height:8px"></s>Sin comparar</div>`;
+    const cor=I.cortes,cu=cor.map(()=>0).concat(0);comp.forEach(c=>cu[clase(I.get(c),cor)]++);
+    C.forEach(c=>{const m=marcas[c.id],x=I.get(c);if(c.grupo==="parcial"||x==null)m.setStyle({radius:4,fillOpacity:0,color:css("--nulo"),weight:1.5});else{m.setStyle({radius:(window.innerWidth<620?.78:1)*(c.grupo==="pequeno"?5.5:8.5),fillColor:colorDe(x,cor),color:css("--borde-marca"),weight:.8,fillOpacity:fondo==="sat"?.85:.95})}});
+    ley.innerHTML=`<b>${I.t}</b>`+cor.concat(null).map((_,i)=>`<div class="i"><s style="background:var(--seq-${i+1})"></s>${rangoTxt(i,cor,I.u)} (${cu[i]})</div>`).join("")+`<div class="i"><s class="ring"></s>No comparable</div>`;
   }
-  C.forEach(c=>{const x=I.get(c);const nota=c.parcial?" (fuente parcial)":"";marcas[c.id].setTooltipContent(`<b>${c.nombre}</b><br>${x==null?"Sin dato":fmt(x,I.d)+(I.u?" "+I.u:"")}${nota}`);
-    if(sel===c.id)marcas[c.id].setStyle({weight:3,color:css("--accent")}).bringToFront();else marcas[c.id].setStyle({weight:1.5})});
-  dibRanking();
+  [...C].sort((a,b)=>(I.get(b)||0)-(I.get(a)||0)).forEach(c=>marcas[c.id].bringToFront());
+  C.forEach(c=>{const x=I.get(c);marcas[c.id].setTooltipContent(`<b>${c.nombre}</b><br>${x==null?"Sin dato":fmt(x,I.d)+I.u}${c.grupo==="parcial"?" · fuente parcial":""}`);
+    if(sel===c.id)marcas[c.id].setStyle({weight:3,color:css("--accent")}).bringToFront()});
+  sel?dibFicha():dibRanking();
 }
+function filaHTML(c,I,mx){const x=I.get(c),cor=I.cortes,col=x==null||c.grupo==="parcial"?css("--nulo"):(cor?colorDe(x,cor):css("--seq-3"));
+  const ic=indicador==="vel_lab"&&c.vel_ic&&c.grupo!=="parcial"?`<u style="left:${100*(x-c.vel_ic)/mx}%;width:${100*2*c.vel_ic/mx}%"></u>`:"";
+  return `<span class="c">${c.nombre}</span><span class="b"><i style="width:${x==null?0:Math.min(100,100*x/mx)}%;background:${col}"></i>${ic}</span><span class="x">${x==null?"—":fmt(x,I.d)+I.u}</span>`}
 function dibRanking(){
-  const I=IND[indicador];
-  document.getElementById("pTit").textContent=I.t;document.getElementById("pExp").textContent=I.e;
-  const f=C.map(c=>({c,x:I.get(c)})).sort((a,b)=>(a.c.parcial-b.c.parcial)||((b.x??-1)-(a.x??-1)));
-  const mx=Math.max(1,...f.filter(y=>!y.c.parcial&&y.x!=null).map(y=>y.x));
-  const R=document.getElementById("ranking");R.innerHTML="";
-  f.forEach(({c,x})=>{const b=document.createElement("button");b.className="fila"+(sel===c.id?" sel":"")+((x==null||c.parcial)?" apag":"");b.setAttribute("aria-pressed",sel===c.id);
-    b.title=c.parcial?"Fuente parcial: 2 líneas":"";
-    b.innerHTML=`<span class="c">${c.nombre}${c.parcial?" *":""}</span><span class="b"><i style="width:${x==null?0:Math.min(100,100*x/mx)}%"></i></span><span class="x">${x==null?"—":fmt(x,I.d)+(I.u==="%"?" %":"")}</span>`;
-    b.onclick=()=>elegir(c.id,true);R.appendChild(b)});
-  const n=[];if(C.some(c=>c.parcial))n.push("* La Serena: la fuente cubre sólo 2 líneas; no se compara.");if(indicador==="vivo")n.push(vivoTxt());
-  if(indicador==="vel_lab")n.push("Sirve para comparar ciudades, no como valor absoluto.");
-  if(indicador==="buses_10k")n.push("En Gran Santiago no incluye Metro.");
-  document.getElementById("pNota").textContent=n.join(" ");
+  const I=IND[indicador],P=$("panel");P.className="card panel";
+  const g=k=>C.filter(c=>c.grupo===k).sort((a,b)=>(I.get(b)??-1)-(I.get(a)??-1));
+  const todos=C.filter(c=>c.grupo!=="parcial"&&I.get(c)!=null).map(I.get);
+  const mx=I.u.trim()==="%"&&indicador!=="gana_dom"?100:Math.max(1,...todos)*(indicador==="vel_lab"?1.04:1);
+  P.innerHTML=`<h2><svg class="ic"><use href="#i-bar"/></svg>${I.t}</h2><p class="desc">${I.e} Selecciona una ciudad para ver su ficha.</p><div class="ranking" id="ranking"></div><p class="nota" id="pNota"></p>`;
+  const R=$("ranking");
+  const mete=(arr,tit)=>{if(tit)R.insertAdjacentHTML("beforeend",`<div class="grupo">${tit}</div>`);arr.forEach(c=>{const b=document.createElement("button");b.className="fila"+(I.get(c)==null||c.grupo==="parcial"?" apag":"");b.innerHTML=filaHTML(c,I,mx);
+    b.onclick=()=>elegir(c.id);b.onmouseenter=b.onfocus=()=>{marcas[c.id].setStyle({weight:3,color:css("--accent")}).bringToFront().openTooltip()};b.onmouseleave=b.onblur=()=>{marcas[c.id].setStyle({weight:.8,color:css("--borde-marca")}).closeTooltip()};R.appendChild(b)})};
+  mete(g("grande"));mete(g("pequeno"),"Sistemas de menos de 5 líneas");mete(g("parcial"),"No comparable: fuente de 2 líneas");
+  const n=[];if(indicador==="vel_lab")n.push("La marca en cada barra es el intervalo de 95 % entre días.");
+  if(I.tam){const s=C.filter(c=>c.vivo&&!reciente(vivoDe(c))).map(c=>c.nombre);n.push("Gran Santiago y La Serena no tienen captura en este sitio."+(s.length?(s.length>4?` Sin dato reciente en ${s.length} ciudades.`:" Sin dato reciente: "+s.join(", ")+"."):""))}
+  if(indicador==="buses_10k"||indicador==="cob400")n.push("Las comunas consideradas se detallan en Método.");
+  $("pNota").textContent=n.join(" ");
 }
-function vivoTxt(){if(!vivo)return "";const s=C.filter(c=>c.vivo&&!reciente(vivoDe(c))).map(c=>c.nombre);return s.length?"Sin dato reciente: "+s.join(", ")+".":""}
-function elegir(id,centrar){sel=sel===id?null:id;pintar();dibTabla();if(sel&&centrar){const c=porId[sel];const z=map.getZoom();map.setView([c.lat,c.lon],Math.max(z,window.innerWidth<620?6:7));marcas[sel].openTooltip()}}
-
+function dibFicha(){
+  const c=porId[sel],P=$("panel");P.className="card panel ficha";
+  const com=C.filter(x=>x.grupo==="grande"),pos=(k,get)=>{if(c.grupo!=="grande")return "";const o=[...com].sort((a,b)=>get(b)-get(a)).findIndex(x=>x.id===c.id)+1;return `, ${o}.º de ${com.length}`};
+  const v=vivoDe(c),hoy=reciente(v)?v.buses:null,nor=v&&c.normal[v.tipo]&&v.bin!=null?c.normal[v.tipo][v.bin]:null;
+  P.innerHTML=`<div class="cab"><h3>${c.nombre}</h3><button class="volver" id="volver">Volver al ranking</button></div>
+  <p class="desc" style="margin:0">${c.comunas.join(", ")}${c.excl.length?". Sin "+c.excl.join(", ")+" en cobertura":""}.</p>
+  ${c.grupo==="parcial"?'<p class="nota">Fuente parcial, de 2 líneas: estas cifras no son comparables con las demás ciudades.</p>':""}
+  <div class="mini">
+   <div><b>${fmt(c.vel_lab,1)}${c.vel_ic?" ±"+fmt(c.vel_ic,1):""}</b><span>km/h laboral${pos("v",x=>x.vel_lab)}</span></div>
+   <div><b>${fmt(c.vel_dom,1)}</b><span>km/h domingo, +${c.gana_dom} %</span></div>
+   <div><b>${fmt(c.buses_pico)}</b><span>buses en punta</span></div>
+   <div><b>${fmt(c.buses_10k,1)}</b><span>por 10.000 hab.${pos("b",x=>x.buses_10k)}</span></div>
+   <div><b>${fmt(c.cob400,1)} %</b><span>cobertura 400 m${pos("c",x=>x.cob400)}</span></div>
+   <div><b>${fmt(c.horas,1)} h</b><span>con la mitad de los buses; 20 % hasta ${c.hasta20}</span></div>
+  </div>
+  ${hoy!=null?`<p class="nota" style="margin:0 0 8px">Ahora, a las ${horaDe(v.snapshot)}: <b>${fmt(hoy)}</b> buses en ruta${nor!=null?`; promedio histórico de esta franja: ${fmt(nor)}`:""}.</p>`:""}
+  <div id="fGraf" class="gi-host"></div>`;
+  $("volver").onclick=()=>elegir(c.id);
+  const pts=a=>a.map((y,i)=>[i/2,y]).slice(10,48);
+  GI.dibuja("fGraf",{tipo:"lineas",id:"f_"+c.id,titulo:"Buses en ruta por hora, promedio histórico",unidad:"buses",dec:0,alto:window.innerWidth<620?230:320,ancho:620,x:{min:5,max:24,paso:3,etiqueta:"Hora"},
+    series:[{id:"L",nombre:"Laboral",color:"--gi-s3",grosor:2.2,conmutable:true,puntos:pts(c.normal.L)},{id:"S",nombre:"Sábado",color:"--gi-s6",grosor:1.8,conmutable:true,puntos:pts(c.normal.S)},{id:"D",nombre:"Domingo",color:"--gi-s2",grosor:1.8,conmutable:true,puntos:pts(c.normal.D)}],hover:{normal:"todas",lupa:"cercanas"}});
+}
+function elegir(id){
+  const antes=sel;sel=sel===id?null:id;
+  if(antes&&marcas[antes])marcas[antes].setStyle({weight:.8,color:css("--borde-marca")});
+  pintar();dibTabla();
+  if(sel){const c=porId[sel];map.setView([c.lat,c.lon],Math.max(map.getZoom(),7.5));[...$("zonas").children].forEach(b=>b.classList.remove("on"));if(window.innerWidth<900)$("panel").scrollIntoView({block:"start"})}
+  else verZona("chile");
+}
 /* selector */
-const P=document.getElementById("pills");
-Object.entries(IND).forEach(([k,v])=>{const b=document.createElement("button");b.className="pill";b.textContent={vivo:"En vivo",vel_lab:"Velocidad",gana_dom:"Velocidad en domingo",buses_10k:"Oferta por habitante",cob400:"Cobertura",horas:"Horas de servicio",valle:"Oferta en valle"}[k];b.dataset.k=k;b.setAttribute("aria-pressed",k===indicador);b.onclick=()=>{indicador=k;P.querySelectorAll(".pill").forEach(x=>x.setAttribute("aria-pressed",x.dataset.k===k));pintar()};P.appendChild(b)});
+const PL=$("pills");Object.entries(IND).forEach(([k,v])=>{const b=document.createElement("button");b.textContent=v.b;b.dataset.k=k;b.className=k===indicador?"on":"";b.setAttribute("aria-pressed",k===indicador);b.onclick=()=>{indicador=k;sel=null;[...PL.children].forEach(x=>{x.classList.toggle("on",x.dataset.k===k);x.setAttribute("aria-pressed",x.dataset.k===k)});pintar()};PL.appendChild(b)});
+$("zonas").onclick=e=>{const z=e.target.dataset.z;if(z){if(sel){sel=null;pintar();dibTabla()}verZona(z)}};
+$("fondos").onclick=e=>{const f=e.target.dataset.f;if(f){fondo=f;[...$("fondos").children].forEach(b=>b.classList.toggle("on",b.dataset.f===f));ponerFondo();pintar()}};
 
 /* tabla */
-const COL=[{k:"nombre",t:"Ciudad"},{k:"pob",t:"Población",d:0},{k:"vel_lab",t:"Velocidad laboral (km/h)",d:1},{k:"vel_dom",t:"Velocidad domingo (km/h)",d:1},{k:"gana_dom",t:"Aumento domingo (%)",d:0},{k:"buses_pico",t:"Buses en punta",d:0},{k:"buses_10k",t:"Buses por 10.000 hab.",d:1},{k:"cob400",t:"Cobertura 400 m (%)",d:1},{k:"horas",t:"Horas de servicio",d:1},{k:"pct_22",t:"Buses a las 22 h (% de punta)",d:0},{k:"valle",t:"Oferta en valle (%)",d:0}];
+const COL=[{k:"nombre",t:"Ciudad"},{k:"lineas",t:"Líneas",d:0},{k:"pob",t:"Población",d:0},{k:"vel_lab",t:"Velocidad laboral (km/h)",d:1},{k:"vel_dom",t:"Velocidad domingo (km/h)",d:1},{k:"gana_dom",t:"Aumento domingo (%)",d:0},{k:"buses_pico",t:"Buses en punta",d:0},{k:"buses_10k",t:"Buses por 10.000 hab.",d:1},{k:"cob400",t:"Cobertura 400 m (%)",d:1},{k:"horas",t:"Horas con 50 % de punta",d:1},{k:"hasta20",t:"Último horario con 20 %"},{k:"pct_22",t:"Buses a las 22 h (% de punta)",d:0},{k:"valle",t:"Buses en valle (%)",d:0}];
 let orden={k:"lat",dir:-1};
 function dibTabla(){
-  const f=[...C].sort((a,b)=>{const x=a[orden.k],y=b[orden.k];return typeof x==="string"?orden.dir*x.localeCompare(y,"es"):orden.dir*((x??-1)-(y??-1))});
-  document.getElementById("thead").innerHTML=COL.map(c=>`<th scope="col" aria-sort="${orden.k===c.k?(orden.dir>0?"ascending":"descending"):"none"}"><button data-k="${c.k}">${c.t}${orden.k===c.k?(orden.dir>0?" ▲":" ▼"):""}</button></th>`).join("");
+  const srt=a=>[...a].sort((x,y)=>{const p=x[orden.k],q=y[orden.k];return typeof p==="string"?orden.dir*p.localeCompare(q,"es"):orden.dir*((p??-1)-(q??-1))});
+  $("thead").innerHTML=COL.map(c=>`<th scope="col" aria-sort="${orden.k===c.k?(orden.dir>0?"ascending":"descending"):"none"}"><button data-k="${c.k}">${c.t}${orden.k===c.k?(orden.dir>0?" ▲":" ▼"):""}</button></th>`).join("");
   document.querySelectorAll("#thead button").forEach(b=>b.onclick=()=>{const k=b.dataset.k;orden={k,dir:orden.k===k?-orden.dir:(k==="nombre"?1:-1)};dibTabla()});
-  const T=document.getElementById("tbody");T.innerHTML="";
-  f.forEach(c=>{const tr=document.createElement("tr");if(sel===c.id)tr.className="sel";tr.tabIndex=0;tr.innerHTML=COL.map(k=>k.k==="nombre"?`<td>${c.nombre}${c.parcial?' <span class="marca-p">*</span>':""}</td>`:`<td>${fmt(c[k.k],k.d)}</td>`).join("");tr.onclick=()=>{elegir(c.id,true);document.getElementById("comparacion").scrollIntoView({behavior:"smooth"})};tr.onkeydown=e=>{if(e.key==="Enter")tr.click()};T.appendChild(tr)});
+  const T=$("tbody");T.innerHTML="";const nc=COL.length;
+  const mete=(arr,tit,ap)=>{if(tit)T.insertAdjacentHTML("beforeend",`<tr class="sep"><td colspan="${nc}">${tit}</td></tr>`);arr.forEach(c=>{const tr=document.createElement("tr");if(ap)tr.className="ap";tr.tabIndex=0;tr.innerHTML=COL.map(k=>k.k==="nombre"?`<td>${c.nombre}</td>`:((c.grupo==="parcial"&&!["lineas","vel_lab","vel_dom","gana_dom"].includes(k.k))?"<td>—</td>":`<td>${k.d==null?(c[k.k]??"—"):fmt(c[k.k],k.d)}</td>`)).join("");tr.onclick=()=>{ir("ciudades");if(sel!==c.id)elegir(c.id)};tr.onkeydown=e=>{if(e.key==="Enter")tr.click()};T.appendChild(tr)})};
+  mete(srt(C.filter(c=>c.grupo==="grande")));mete(srt(C.filter(c=>c.grupo==="pequeno")),"Sistemas de menos de 5 líneas");mete(srt(C.filter(c=>c.grupo==="parcial")),"No comparable: fuente de 2 líneas",true);
 }
+$("tNota").textContent="Ordenadas de norte a sur. Selecciona un encabezado para ordenar y una ciudad para ver su ficha. Cobertura y población, sin las comunas que se detallan en Método.";
+$("tMetodo").innerHTML=C.map(c=>`<tr style="cursor:default"><td>${c.nombre}</td><td style="text-align:left;white-space:normal;font-family:var(--font-ui);min-width:220px">${c.comunas.join(", ")}</td><td style="text-align:left;white-space:normal;font-family:var(--font-ui)">${c.excl.join(", ")||"—"}</td><td>${c.lineas}</td><td>${c.dias_l} + ${c.dias_d}</td><td>${fmt(c.pulsos)}</td></tr>`).join("");
 
 /* KPI */
 function kpis(){
-  const comp=C.filter(c=>!c.parcial);
-  document.getElementById("kComp").textContent=comp.length;
-  document.getElementById("kPob").textContent=(comp.reduce((s,c)=>s+c.pob,0)/1e6).toLocaleString("es-CL",{maximumFractionDigits:1})+" M";
-  const led=document.getElementById("led"),kB=document.getElementById("kBuses"),kN=document.getElementById("kBusesN"),kC=document.getElementById("kCiud"),kCN=document.getElementById("kCiudN");
-  if(!vivo){kN.textContent="El dato en vivo no está disponible en este momento.";kC.textContent="—";return}
-  const conC=Object.keys(vivo.ciudades).map(id=>({id,v:vivo.ciudades[id]})).filter(x=>x.v&&reciente(x.v)&&(x.v.buses||0)>0);
-  const tot=conC.reduce((s,x)=>s+x.v.buses,0);
-  kC.textContent=conC.length;kCN.textContent="de "+Object.keys(vivo.ciudades).length+" con captura";
-  if(!conC.length){led.classList.add("off");kB.textContent="—";kN.textContent="La captura se detiene de 01:00 a 05:00 y puede haber menos servicio a esta hora.";return}
-  led.classList.remove("off");kB.textContent=fmt(tot);
-  let nor=0;conC.forEach(x=>{const c=porId[x.id];const a=c&&c.normal[x.v.tipo];if(a&&a[x.v.bin]!=null)nor+=a[x.v.bin]});
-  const ult=conC.map(x=>new Date(x.v.snapshot)).sort((a,b)=>b-a)[0];
-  const h=ult.toLocaleTimeString("es-CL",{hour:"2-digit",minute:"2-digit",hourCycle:"h23",timeZone:"America/Santiago"});
-  kN.textContent=`A las ${h}, en ${conC.length} ciudades`+(nor?`. Lo normal a esta hora: ${fmt(nor)}`:"")+".";
+  const gr=C.filter(c=>c.grupo==="grande"),pq=C.filter(c=>c.grupo==="pequeno"),cmp=gr.concat(pq);
+  $("kComp").textContent=gr.length;$("kCompN").textContent="y "+pq.length+" de menos de 5 líneas";
+  $("kVel").textContent=fmt(Math.min(...gr.map(c=>c.vel_lab)),1)+"–"+fmt(Math.max(...gr.map(c=>c.vel_lab)),1);
+  $("kHoras").textContent=fmt(Math.min(...gr.map(c=>c.horas)),1)+"–"+fmt(Math.max(...gr.map(c=>c.horas)),1);
+  $("kPob").textContent=fmt(cmp.reduce((s,c)=>s+c.pob,0)/1e6,1)+" M";
+  const led=$("led"),stgo=porId.santiago;
+  const off=m=>{led.classList.add("off");$("ledT").textContent="Sin señal";$("kBuses").textContent="—";$("kBusesN").textContent=m;$("banner").innerHTML=`${m} Gran Santiago, que no se captura en este sitio, opera cerca de <b>${fmt(Math.round(stgo.buses_pico/100)*100)}</b> buses en hora punta.`};
+  if(!vivo){off("Dato en vivo no disponible.");return}
+  const con=Object.keys(vivo.ciudades).map(id=>({id,v:vivo.ciudades[id]})).filter(x=>x.v&&reciente(x.v)&&(x.v.buses||0)>0);
+  if(!con.length){off("La captura se detiene de 01:00 a 05:00.");return}
+  const tot=con.reduce((s,x)=>s+x.v.buses,0);let nor=0;con.forEach(x=>{const c=porId[x.id];const a=c&&c.normal[x.v.tipo];if(a&&a[x.v.bin]!=null)nor+=a[x.v.bin]});
+  const h=horaDe(con.map(x=>x.v.snapshot).sort().pop());
+  led.classList.remove("off");$("ledT").textContent="En vivo";$("kBuses").textContent=fmt(tot);$("kBusesN").textContent=`${con.length} ciudades, sin Gran Santiago`;
+  $("banner").innerHTML=`A las <b>${h}</b> circulan <b>${fmt(tot)}</b> buses en <b>${con.length}</b> ciudades regionales${nor?`; el promedio histórico de esta franja es ${fmt(nor)}`:""}. Gran Santiago, que no se captura en este sitio, opera cerca de <b>${fmt(Math.round(stgo.buses_pico/100)*100)}</b> buses en hora punta.`;
 }
 async function cargarVivo(){try{const r=await fetch("data/vivo.json?t="+Math.floor(Date.now()/3e5),{cache:"no-store"});if(!r.ok)throw 0;vivo=await r.json()}catch(e){vivo=null}kpis();pintar()}
 
+/* pestañas */
+function ir(v){[...$("mainTabs").children].forEach(b=>b.classList.toggle("on",b.dataset.v===v));document.querySelectorAll(".vista").forEach(s=>s.hidden=s.id!=="v-"+v);
+  if(v==="dia"&&!grafListo){GI.dibuja("graf",GRAF);grafListo=true}if(v==="ciudades")setTimeout(()=>map.invalidateSize(),30);try{history.replaceState(null,"","#"+v)}catch(e){}}
+$("mainTabs").onclick=e=>{const b=e.target.closest("button");if(b)ir(b.dataset.v)};
+
+/* rótulos directos en la dispersión: el motor sólo los trae al pasar el mouse. Se reponen al redibujar, también en la lupa */
+function rotulaDispersion(){document.querySelectorAll('svg.gi-svg[data-gi="dom"]:not([data-rot])').forEach(svg=>{svg.setAttribute("data-rot","1");
+  const hechos=[],vb=svg.viewBox.baseVal,circ=[...svg.querySelectorAll("circle[data-tip]")];
+  [...circ].sort((a,b)=>a.cx.baseVal.value-b.cx.baseVal.value).forEach(c=>{
+    const m=/<b>(.*?)<\/b>/.exec(c.getAttribute("data-tip"));if(!m)return;
+    const t=m[1].replace("Gran ",""),x=c.cx.baseVal.value,y=c.cy.baseVal.value,w=t.length*6.1,h=13;
+    const op=[[x+8,y+4,"start",x+8],[x-8,y+4,"end",x-8-w],[x,y-9,"middle",x-w/2],[x,y+17,"middle",x-w/2]];
+    const libre=o=>{const c0={x:o[3],y:o[1]-10};return c0.x>=0&&c0.x+w<=vb.width&&!hechos.some(b=>c0.x<b.x+b.w&&c0.x+w>b.x&&c0.y<b.y+h&&c0.y+h>b.y)&&!circ.some(k=>k!==c&&k.cx.baseVal.value>c0.x-6&&k.cx.baseVal.value<c0.x+w+6&&k.cy.baseVal.value>c0.y-6&&k.cy.baseVal.value<c0.y+h+6)};
+    const o=op.find(libre)||op[0];hechos.push({x:o[3],y:o[1]-10,w});
+    const e=document.createElementNS("http://www.w3.org/2000/svg","text");e.setAttribute("x",o[0]);e.setAttribute("y",o[1]);e.setAttribute("text-anchor",o[2]);e.setAttribute("font-size","11");e.setAttribute("pointer-events","none");e.style.fill="var(--gi-ink-mid)";e.textContent=t;svg.appendChild(e)})})}
+let rotPend=false;new MutationObserver(()=>{if(rotPend)return;rotPend=true;requestAnimationFrame(()=>{rotPend=false;rotulaDispersion()})}).observe(document.body,{childList:true,subtree:true});
+
 /* tema */
-try{const t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}
-const tBtn=document.getElementById("temaBtn");
-function icono(){tBtn.textContent=document.documentElement.getAttribute("data-theme")==="dark"?"☀":"☾"}
+const tBtn=$("temaBtn");
+const icono=()=>{tBtn.textContent=document.documentElement.getAttribute("data-theme")==="dark"?"☀":"☾"};
 tBtn.onclick=()=>{const d=document.documentElement.getAttribute("data-theme")!=="dark";document.documentElement.setAttribute("data-theme",d?"dark":"light");try{localStorage.setItem("tema",d?"dark":"light")}catch(e){}icono();ponerFondo();pintar()};
-const bb=document.getElementById("bmBase"),bs=document.getElementById("bmSat");
-function fondoSet(f){fondo=f;bb.setAttribute("aria-pressed",f==="base");bs.setAttribute("aria-pressed",f==="sat");ponerFondo();pintar()}
-bb.onclick=()=>fondoSet("base");bs.onclick=()=>fondoSet("sat");
-document.getElementById("mMuestra").textContent=NAC.muestra;
-icono();ponerFondo();kpis();pintar();dibTabla();cargarVivo();setInterval(cargarVivo,3e5);
-window.addEventListener("resize",()=>map.invalidateSize());
+$("mMuestra").textContent=NAC.muestra;
+icono();ponerFondo();verZona("chile");rotularZoom();kpis();pintar();dibTabla();cargarVivo();setInterval(cargarVivo,3e5);
+const h0=location.hash.slice(1);if(["ciudades","dia","tabla","analisis","metodo"].includes(h0))ir(h0);
+window.addEventListener("resize",()=>{map.invalidateSize();pintar()});
 </script>
 </body>
 </html>
